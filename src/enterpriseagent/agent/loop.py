@@ -2,9 +2,9 @@ import asyncio
 import random
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Protocol
 
 from enterpriseagent.agent.state import AgentState
+from enterpriseagent.agent.tools.base import Tool
 from enterpriseagent.providers.base import LLMProvider, Response
 
 
@@ -17,14 +17,6 @@ class AgentResponse:
     content: str | None
     state: AgentState
     usage: dict | None = None
-
-
-class Tool(Protocol):
-    name: str
-    description: str
-    input_schema: dict
-
-    async def execute(self, **params) -> str: ...
 
 
 def find_tool(name: str, tools: list[Tool]) -> Tool | None:

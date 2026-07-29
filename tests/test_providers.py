@@ -47,7 +47,7 @@ class TestAnthropicProvider:
         from enterpriseagent.providers.anthropic import AnthropicProvider
 
         provider = AnthropicProvider(api_key="test-key")
-        assert provider.model == "claude-sonnet-4-20250514"
+        assert provider.model == "claude-sonnet-4-6"
 
     @pytest.mark.skipif(
         not settings.anthropic_api_key,

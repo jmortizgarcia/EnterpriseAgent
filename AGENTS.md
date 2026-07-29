@@ -11,8 +11,8 @@ Read `docs/Guion-Proyecto-Estrella-Jose-Maria-Ortiz.md` first. It is the master 
 ## Stack
 
 | Layer | Choice |
-|---|---|
-| Language | Python 3.14 (`.python-version`, `pyproject.toml` — docs say 3.12, repo is 3.14) |
+|---|---|---|
+| Language | Python 3.14 (`.python-version`, `pyproject.toml`) |
 | Package mgr | `uv` |
 | API | FastAPI + pydantic |
 | LLMs | Anthropic Claude (primary), OpenAI (secondary — abstraction layer) |
@@ -34,7 +34,13 @@ src/enterpriseagent/   # package root (matches pyproject.toml `name`)
 ├── agent/
 │   ├── __init__.py
 │   ├── state.py           # AgentState dataclass
-│   └── loop.py            # run_agent bucle + error handling
+│   ├── loop.py            # run_agent bucle + error handling
+│   └── tools/
+│       ├── __init__.py
+│       ├── base.py        # Tool ABC
+│       ├── search_docs.py # Stub RAG tool
+│       ├── create_ticket.py
+│       └── query_metric.py
 ├── providers/
 │   ├── __init__.py
 │   ├── base.py           # LLMProvider ABC + ToolCall/Response

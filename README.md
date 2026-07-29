@@ -67,7 +67,13 @@ curl http://localhost:8000/health
 │       ├── agent/
 │       │   ├── __init__.py
 │       │   ├── state.py
-│       │   └── loop.py
+│       │   ├── loop.py
+│       │   └── tools/
+│       │       ├── __init__.py
+│       │       ├── base.py
+│       │       ├── search_docs.py
+│       │       ├── create_ticket.py
+│       │       └── query_metric.py
 │       └── providers/
 │           ├── __init__.py
 │           ├── base.py
@@ -77,6 +83,8 @@ curl http://localhost:8000/health
     ├── __init__.py
     ├── test_health.py
     ├── test_providers.py
+    ├── test_agent_loop.py
+    └── test_tools.py
     └── test_agent_loop.py
 ```
 
