@@ -1,0 +1,19 @@
+# docs personales (no públicos)
+docs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker / datos locales
+data/chroma/
