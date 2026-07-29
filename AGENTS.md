@@ -32,6 +32,9 @@ src/enterpriseagent/   # package root (matches pyproject.toml `name`)
 ├── main.py              # FastAPI app
 ├── config.py            # pydantic-settings
 ├── agent/
+│   ├── __init__.py
+│   ├── state.py           # AgentState dataclass
+│   └── loop.py            # run_agent bucle + error handling
 ├── providers/
 │   ├── __init__.py
 │   ├── base.py           # LLMProvider ABC + ToolCall/Response

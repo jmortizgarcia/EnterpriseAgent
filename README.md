@@ -64,6 +64,10 @@ curl http://localhost:8000/health
 │       ├── __init__.py
 │       ├── main.py
 │       ├── config.py
+│       ├── agent/
+│       │   ├── __init__.py
+│       │   ├── state.py
+│       │   └── loop.py
 │       └── providers/
 │           ├── __init__.py
 │           ├── base.py
@@ -72,7 +76,8 @@ curl http://localhost:8000/health
 └── tests/
     ├── __init__.py
     ├── test_health.py
-    └── test_providers.py
+    ├── test_providers.py
+    └── test_agent_loop.py
 ```
 
 ## License
