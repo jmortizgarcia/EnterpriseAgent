@@ -30,12 +30,14 @@ class TestSearchDocs:
     @pytest.mark.asyncio
     async def test_execute(self, tool):
         result = await tool.execute(query="how to deploy")
-        assert "Simulated search for: how to deploy" in result
+        assert "[1]" in result
+        assert "deploy" in result.lower()
 
     @pytest.mark.asyncio
     async def test_execute_default_query(self, tool):
         result = await tool.execute()
-        assert "Simulated search for:" in result
+        assert "[1]" in result
+        assert len(result) > 50
 
     def test_is_tool(self, tool):
         assert isinstance(tool, ToolABC)

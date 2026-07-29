@@ -19,14 +19,14 @@
 
 ## Features
 
-- **RAG pipeline** — ingest, chunk, embed, retrieve with source citation
+- **RAG pipeline** — ingest, chunk, embed, retrieve with source citation (Chroma + Ollama embeddings)
 - **Multi-provider LLM layer** — interchangeable Ollama (local) / Claude / OpenAI via a common interface
 - **Tool use** — agent executes real actions (create ticket, query metric, search docs)
-- **Conversational memory** — sliding window + summarization, persisted per session
-- **Multi-agent orchestration** — supervisor routes intent to specialized sub-agents
-- **Guardrails** — input validation, prompt injection detection, PII redaction
-- **Evaluation harness** — accuracy, faithfulness, hallucination rate via LLM-as-judge + Ragas
-- **Observability** — token tracking, cost per request, structured logging
+- **Conversational memory** — sliding window + summarization, persisted per session (Sprint 3)
+- **Multi-agent orchestration** — supervisor routes intent to specialized sub-agents (Sprint 3)
+- **Guardrails** — input validation, prompt injection detection, PII redaction (Sprint 3)
+- **Evaluation harness** — accuracy, faithfulness, hallucination rate via LLM-as-judge + Ragas (Sprint 4)
+- **Observability** — token tracking, cost per request, structured logging (Sprint 4)
 - **CI/CD** — automated lint → test → build → deploy on push
 
 ## Quick start
@@ -63,6 +63,7 @@ curl -X POST localhost:8000/agent/chat ^
 | `make test` | Run all tests |
 | `make lint` | Lint |
 | `make build` | Docker build |
+| `make ingest` | Index docs into Chroma (RAG) |
 
 ## Project structure
 
@@ -75,6 +76,8 @@ curl -X POST localhost:8000/agent/chat ^
 ├── README.md
 ├── pyproject.toml
 ├── uv.lock
+├── data/
+│   └── docs/                     # RAG corpus (8 markdown files)
 ├── docs/
 │   └── ...
 ├── src/
@@ -92,12 +95,16 @@ curl -X POST localhost:8000/agent/chat ^
 │       │       ├── search_docs.py
 │       │       ├── create_ticket.py
 │       │       └── query_metric.py
-│       └── providers/
+│       ├── providers/
+│       │   ├── __init__.py
+│       │   ├── base.py
+│       │   ├── anthropic.py
+│       │   ├── openai.py
+│       │   └── ollama.py
+│       └── rag/
 │           ├── __init__.py
-│           ├── base.py
-│           ├── anthropic.py
-│           ├── openai.py
-│           └── ollama.py
+│           ├── vector_store.py
+│           └── ingestion.py
 └── tests/
     ├── __init__.py
     ├── test_health.py

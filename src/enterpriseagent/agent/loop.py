@@ -7,6 +7,14 @@ from enterpriseagent.agent.state import AgentState
 from enterpriseagent.agent.tools.base import Tool
 from enterpriseagent.providers.base import LLMProvider, Response
 
+RAG_SYSTEM_PROMPT = (
+    "Eres un asistente de soporte técnico para Nimbus Cloud Platform. Tus respuestas deben:\n"
+    "1. Basarse SOLO en las fuentes proporcionadas por la herramienta search_docs\n"
+    "2. Citar las fuentes como [1], [2], etc.\n"
+    "3. Si no hay información en las fuentes, decirlo explícitamente — NO inventes\n"
+    "4. Si el usuario pregunta algo fuera del alcance de la documentación, redirigir amablemente"
+)
+
 
 class MaxIterationsError(Exception):
     ...
@@ -62,6 +70,8 @@ async def run_agent(
     max_iterations: int = 10,
 ) -> AgentResponse:
     state = state or AgentState()
+    if not any(m.get("role") == "system" for m in state.messages):
+        state.messages.insert(0, {"role": "system", "content": RAG_SYSTEM_PROMPT})
     state.messages.append({"role": "user", "content": user_message})
 
     active_provider = provider
@@ -117,6 +127,8 @@ async def run_agent_stream(
     state: AgentState | None = None,
 ) -> AsyncIterator[dict]:
     state = state or AgentState()
+    if not any(m.get("role") == "system" for m in state.messages):
+        state.messages.insert(0, {"role": "system", "content": RAG_SYSTEM_PROMPT})
     state.messages.append({"role": "user", "content": user_message})
 
     tools_list = tools or []

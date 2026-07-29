@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     provider: str = "ollama"
     ollama_model: str = "llama3.2"
     ollama_base_url: str = "http://localhost:11434"
+    embedding_model: str = "nomic-embed-text"
     database_url: str = "sqlite:///data/sessions.db"
     langsmith_api_key: str = ""
     environment: str = "development"

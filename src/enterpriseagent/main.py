@@ -13,6 +13,7 @@ from enterpriseagent.providers import (
     OllamaProvider,
     OpenAIProvider,
 )
+from enterpriseagent.rag.vector_store import ChromaStore
 
 app = FastAPI(title="Enterprise Agent", version="0.1.0")
 
@@ -37,7 +38,7 @@ def get_provider(name: str | None = None) -> LLMProvider:
 
 
 def get_tools() -> list:
-    return [SearchDocs(), CreateTicket(), QueryMetric()]
+    return [SearchDocs(store=ChromaStore()), CreateTicket(), QueryMetric()]
 
 
 @app.get("/health")

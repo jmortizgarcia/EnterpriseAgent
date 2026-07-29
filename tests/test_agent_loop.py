@@ -156,9 +156,10 @@ class TestRunAgent:
         )
         assert result.content == "Hello from mock"
         assert result.state is not None
-        assert len(result.state.messages) == 2
-        assert result.state.messages[0]["role"] == "user"
-        assert result.state.messages[1]["role"] == "assistant"
+        assert len(result.state.messages) == 3
+        assert result.state.messages[0]["role"] == "system"
+        assert result.state.messages[1]["role"] == "user"
+        assert result.state.messages[2]["role"] == "assistant"
 
     @pytest.mark.asyncio
     async def test_tool_execution(self):
@@ -282,9 +283,9 @@ class TestRunAgent:
             provider=MockTextProvider(),
             state=result1.state,
         )
-        assert len(result2.state.messages) == 4
-        assert result2.state.messages[0]["content"] == "First"
-        assert result2.state.messages[2]["content"] == "Second"
+        assert len(result2.state.messages) == 5
+        assert result2.state.messages[1]["content"] == "First"
+        assert result2.state.messages[3]["content"] == "Second"
 
     @pytest.mark.asyncio
     async def test_usage_tracked_in_response(self):

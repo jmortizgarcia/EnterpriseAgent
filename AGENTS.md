@@ -34,11 +34,11 @@ src/enterpriseagent/   # package root (matches pyproject.toml `name`)
 ├── agent/
 │   ├── __init__.py
 │   ├── state.py           # AgentState dataclass
-│   ├── loop.py            # run_agent bucle + error handling
+│   ├── loop.py            # run_agent bucle + error handling + RAG system prompt
 │   └── tools/
 │       ├── __init__.py
 │       ├── base.py        # Tool ABC
-│       ├── search_docs.py # Stub RAG tool
+│       ├── search_docs.py # RAG tool (Chroma real, Sprint 2)
 │       ├── create_ticket.py
 │       └── query_metric.py
 ├── providers/
@@ -48,6 +48,9 @@ src/enterpriseagent/   # package root (matches pyproject.toml `name`)
 │   ├── openai.py         # OpenAI GPT-4o implementation
 │   └── ollama.py         # Ollama (local LLM) implementation
 ├── rag/
+│   ├── __init__.py
+│   ├── vector_store.py   # ChromaStore wrapper (local ChromaDB)
+│   └── ingestion.py      # chunk_markdown + ingest pipeline
 ├── memory/
 ├── guardrails/
 ├── evaluation/
@@ -63,6 +66,8 @@ uv run pytest -v                        # all tests
 uv run pytest -v -k test_name           # single test
 uv run ruff check .                     # lint
 uv run ruff check --fix .               # lint + autofix
+uv run python -m enterpriseagent.rag.ingestion   # index docs into Chroma
+ollama pull nomic-embed-text             # embedding model for RAG
 ```
 
 ## Critical conventions
@@ -70,6 +75,8 @@ uv run ruff check --fix .               # lint + autofix
 - **Always use `enterpriseagent.` prefix** for Python module paths (e.g. `enterpriseagent.main:app`), never `src.`.
 - Python 3.14 is the real version; `docs/plan.md` and the guion say 3.12 — treat as stale on this point.
 - Sprint 0 complete: CI/GitHub Actions, Makefile, Dockerfile, test_health.py committed.
+- Sprint 1 complete: Multi-provider, agent loop, tools, FastAPI integration (60 tests).
+- Sprint 2 in progress: RAG pipeline (Chroma + Ollama embeddings + markdown chunking, 45 chunks indexed).
 - `docs/Chuleta.md` is the author's personal interview-prep doc (renamed from `docs/README.md`), not a project README.
 
 ## Project rules (from the guion)
