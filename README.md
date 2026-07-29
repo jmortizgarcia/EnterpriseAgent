@@ -63,10 +63,16 @@ curl http://localhost:8000/health
 │   └── enterpriseagent/
 │       ├── __init__.py
 │       ├── main.py
-│       └── config.py
+│       ├── config.py
+│       └── providers/
+│           ├── __init__.py
+│           ├── base.py
+│           ├── anthropic.py
+│           └── openai.py
 └── tests/
     ├── __init__.py
-    └── test_health.py
+    ├── test_health.py
+    └── test_providers.py
 ```
 
 ## License

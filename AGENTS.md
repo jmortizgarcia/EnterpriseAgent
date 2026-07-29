@@ -33,6 +33,10 @@ src/enterpriseagent/   # package root (matches pyproject.toml `name`)
 ├── config.py            # pydantic-settings
 ├── agent/
 ├── providers/
+│   ├── __init__.py
+│   ├── base.py           # LLMProvider ABC + ToolCall/Response
+│   ├── anthropic.py      # Anthropic Claude implementation
+│   └── openai.py         # OpenAI GPT-4o implementation
 ├── rag/
 ├── memory/
 ├── guardrails/
@@ -55,7 +59,7 @@ uv run ruff check --fix .               # lint + autofix
 
 - **Always use `enterpriseagent.` prefix** for Python module paths (e.g. `enterpriseagent.main:app`), never `src.`.
 - Python 3.14 is the real version; `docs/plan.md` and the guion say 3.12 — treat as stale on this point.
-- No CI, Makefile, or Dockerfile exist yet (Sprint 0 deliverables — see plan.md).
+- Sprint 0 complete: CI/GitHub Actions, Makefile, Dockerfile, test_health.py committed.
 - `docs/Chuleta.md` is the author's personal interview-prep doc (renamed from `docs/README.md`), not a project README.
 
 ## Project rules (from the guion)
