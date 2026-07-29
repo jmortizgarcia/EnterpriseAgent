@@ -40,27 +40,33 @@ curl http://localhost:8000/health
 ## Commands
 
 | Command | Description |
-|---|---|
-| `uv run uvicorn enterpriseagent.main:app --reload` | Dev server with hot-reload |
-| `uv run pytest -v` | Run all tests |
-| `uv run ruff check .` | Lint |
+|---|---|---|
+| `make dev` | Dev server with hot-reload |
+| `make test` | Run all tests |
+| `make lint` | Lint |
 | `make build` | Docker build |
 
 ## Project structure
 
 ```
-src/enterpriseagent/
-├── __init__.py
-├── main.py
-├── config.py
-├── agent/
-├── providers/
-├── rag/
-├── memory/
-├── guardrails/
-├── evaluation/
-└── observability/
-tests/
+├── .gitignore
+├── .python-version
+├── AGENTS.md
+├── Dockerfile
+├── Makefile
+├── README.md
+├── pyproject.toml
+├── uv.lock
+├── docs/
+│   └── ...
+├── src/
+│   └── enterpriseagent/
+│       ├── __init__.py
+│       ├── main.py
+│       └── config.py
+└── tests/
+    ├── __init__.py
+    └── test_health.py
 ```
 
 ## License
