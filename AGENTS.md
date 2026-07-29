@@ -15,7 +15,7 @@ Read `docs/Guion-Proyecto-Estrella-Jose-Maria-Ortiz.md` first. It is the master 
 | Language | Python 3.14 (`.python-version`, `pyproject.toml`) |
 | Package mgr | `uv` |
 | API | FastAPI + pydantic |
-| LLMs | Anthropic Claude (primary), OpenAI (secondary — abstraction layer) |
+| LLMs | Ollama (local, default), Anthropic Claude, OpenAI (abstraction layer) |
 | Orchestration | Custom loop → LangGraph (Sprint 3) |
 | RAG | Chroma (local) → pgvector (prod) |
 | Eval | Custom harness + Ragas |
@@ -45,7 +45,8 @@ src/enterpriseagent/   # package root (matches pyproject.toml `name`)
 │   ├── __init__.py
 │   ├── base.py           # LLMProvider ABC + ToolCall/Response
 │   ├── anthropic.py      # Anthropic Claude implementation
-│   └── openai.py         # OpenAI GPT-4o implementation
+│   ├── openai.py         # OpenAI GPT-4o implementation
+│   └── ollama.py         # Ollama (local LLM) implementation
 ├── rag/
 ├── memory/
 ├── guardrails/

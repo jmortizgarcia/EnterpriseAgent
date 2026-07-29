@@ -8,7 +8,7 @@
 |---|---|
 | Language | Python 3.14 + uv |
 | API | FastAPI + Pydantic |
-| LLMs | Anthropic Claude (primary), OpenAI (secondary) |
+| LLMs | Ollama (local, default), Anthropic Claude, OpenAI |
 | Orchestration | Custom loop → LangGraph |
 | RAG | Chroma (local) → pgvector (prod) |
 | Eval | Custom harness + Ragas |
@@ -20,7 +20,7 @@
 ## Features
 
 - **RAG pipeline** — ingest, chunk, embed, retrieve with source citation
-- **Multi-provider LLM layer** — interchangeable Claude / OpenAI via a common interface
+- **Multi-provider LLM layer** — interchangeable Ollama (local) / Claude / OpenAI via a common interface
 - **Tool use** — agent executes real actions (create ticket, query metric, search docs)
 - **Conversational memory** — sliding window + summarization, persisted per session
 - **Multi-agent orchestration** — supervisor routes intent to specialized sub-agents
@@ -31,10 +31,28 @@
 
 ## Quick start
 
+### 1. Install Ollama (free, local LLM)
+
+```powershell
+# https://ollama.com — download and install
+ollama pull llama3.2
+ollama list  # verify it's installed
+```
+
+### 2. Start the agent
+
 ```powershell
 uv sync
 uv run uvicorn enterpriseagent.main:app --reload
 curl http://localhost:8000/health
+```
+
+### 3. Chat with the agent
+
+```powershell
+curl -X POST localhost:8000/agent/chat ^
+  -H "Content-Type: application/json" ^
+  -d "{\"message\":\"dime algo interesante\",\"provider\":\"ollama\"}"
 ```
 
 ## Commands
@@ -78,14 +96,16 @@ curl http://localhost:8000/health
 │           ├── __init__.py
 │           ├── base.py
 │           ├── anthropic.py
-│           └── openai.py
+│           ├── openai.py
+│           └── ollama.py
 └── tests/
     ├── __init__.py
     ├── test_health.py
     ├── test_providers.py
     ├── test_agent_loop.py
-    └── test_tools.py
-    └── test_agent_loop.py
+    ├── test_tools.py
+    ├── test_chat.py
+    └── test_ollama.py
 ```
 
 ## License

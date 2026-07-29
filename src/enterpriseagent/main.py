@@ -7,7 +7,12 @@ from pydantic import BaseModel
 from enterpriseagent.agent.loop import run_agent, run_agent_stream
 from enterpriseagent.agent.tools import CreateTicket, QueryMetric, SearchDocs
 from enterpriseagent.config import settings
-from enterpriseagent.providers import AnthropicProvider, LLMProvider, OpenAIProvider
+from enterpriseagent.providers import (
+    AnthropicProvider,
+    LLMProvider,
+    OllamaProvider,
+    OpenAIProvider,
+)
 
 app = FastAPI(title="Enterprise Agent", version="0.1.0")
 
@@ -26,6 +31,8 @@ def get_provider(name: str | None = None) -> LLMProvider:
     provider_name = name or settings.provider
     if provider_name == "openai":
         return OpenAIProvider()
+    if provider_name == "ollama":
+        return OllamaProvider()
     return AnthropicProvider()
 
 
