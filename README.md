@@ -1,6 +1,8 @@
-# Enterprise Agent
+# Enterprise AI Agent
 
-> Multi-agent AI assistant with RAG, tool use, conversational memory, evaluation harness, guardrails, and cloud-native deployment.
+> 🧠 Self-study project exploring production-grade AI agent architectures
+
+Enterprise-ready AI assistant with RAG, multi-provider LLM support, tool use, and cloud-native deployment. Built from scratch as a portfolio project to demonstrate end-to-end agent engineering — from local development to production deployment.
 
 ## Stack
 
@@ -17,102 +19,108 @@
 | Cloud | Cloud Run |
 | CI/CD | GitHub Actions |
 
-## Features
+## ✅ Implemented
 
-- **RAG pipeline** — ingest, chunk, embed, retrieve with source citation (Chroma + Ollama embeddings)
-- **Multi-provider LLM layer** — interchangeable Ollama (local) / Claude / OpenAI via a common interface
-- **Tool use** — agent executes real actions (create ticket, query metric, search docs)
-- **Conversational memory** — sliding window + summarization, persisted per session (Sprint 3)
-- **Multi-agent orchestration** — supervisor routes intent to specialized sub-agents (Sprint 3)
-- **Guardrails** — input validation, prompt injection detection, PII redaction (Sprint 3)
-- **Evaluation harness** — accuracy, faithfulness, hallucination rate via LLM-as-judge + Ragas (Sprint 4)
-- **Observability** — token tracking, cost per request, structured logging (Sprint 4)
-- **CI/CD** — automated lint → test → build → deploy on push
+- **Multi-provider LLM layer** — Ollama (local), Claude, OpenAI via a common abstract interface; swap providers with a single config change
+- **Agent loop** — perception → decision → action → observation cycle with tool calling, error handling (timeout, retry, exponential backoff), and provider fallback
+- **Tool use** — three real tools: `search_docs`, `create_ticket`, `query_metric`; extensible via `Tool` ABC
+- **RAG pipeline** — markdown ingestion with semantic chunking, ChromaDB vector store, Ollama embeddings (`nomic-embed-text`); 8 documentation pages indexed and searchable
+- **Streaming chat** — Server-Sent Events (SSE) endpoint for real-time responses
+- **CI/CD** — GitHub Actions workflow: `ruff check` → `pytest` → `docker build` on every push
+- **8 passing tests** — provider interface, agent loop, tool execution, RAG chunking, chat endpoints
 
-## Quick start
+## 🔜 Roadmap
 
-### 1. Install Ollama (free, local LLM)
+- Conversational memory — sliding window + LLM summarization, persisted per session
+- Multi-agent orchestration — supervisor routes intent to specialized sub-agents (docs vs. actions)
+- Guardrails — input validation, prompt injection detection, PII redaction
+- Evaluation harness — accuracy, faithfulness, hallucination rate via LLM-as-judge + Ragas
+- Observability — token tracking, cost per request, structured logging
+- Cloud Run deployment — automated CI/CD with Secret Manager, pgvector, and monitoring
+
+## Quick Start
+
+### Prerequisites
 
 ```powershell
-# https://ollama.com — download and install
+# Install Ollama (free, local LLM)
+# https://ollama.com
 ollama pull llama3.2
-ollama list  # verify it's installed
+ollama pull nomic-embed-text
 ```
 
-### 2. Start the agent
+### Run
 
 ```powershell
 uv sync
 uv run uvicorn enterpriseagent.main:app --reload
-curl http://localhost:8000/health
 ```
 
-### 3. Chat with the agent
+### Verify
+
+```powershell
+curl http://localhost:8000/health
+# {"status": "ok", "environment": "development"}
+```
+
+### Chat
 
 ```powershell
 curl -X POST localhost:8000/agent/chat ^
   -H "Content-Type: application/json" ^
-  -d "{\"message\":\"dime algo interesante\",\"provider\":\"ollama\"}"
+  -d "{\"message\":\"¿cuál es el SLA del plan enterprise?\",\"provider\":\"ollama\"}"
 ```
+
+## Demo
+
+> 📸 *Screenshot coming soon — agent responding with cited sources from the RAG corpus*
 
 ## Commands
 
 | Command | Description |
-|---|---|---|
+|---|---|
 | `make dev` | Dev server with hot-reload |
 | `make test` | Run all tests |
-| `make lint` | Lint |
+| `make lint` | Lint with ruff |
 | `make build` | Docker build |
 | `make ingest` | Index docs into Chroma (RAG) |
 
-## Project structure
+## Project Structure
 
 ```
-├── .gitignore
-├── .python-version
-├── AGENTS.md
+├── pyproject.toml          # Deps + entry points
 ├── Dockerfile
 ├── Makefile
-├── README.md
-├── pyproject.toml
-├── uv.lock
 ├── data/
-│   └── docs/                     # RAG corpus (8 markdown files)
-├── docs/
-│   └── ...
+│   └── docs/               # RAG corpus (8 markdown files)
 ├── src/
 │   └── enterpriseagent/
-│       ├── __init__.py
-│       ├── main.py
-│       ├── config.py
+│       ├── main.py         # FastAPI app + endpoints
+│       ├── config.py       # pydantic-settings
 │       ├── agent/
-│       │   ├── __init__.py
-│       │   ├── state.py
-│       │   ├── loop.py
+│       │   ├── state.py    # AgentState
+│       │   ├── loop.py     # Agent loop
 │       │   └── tools/
-│       │       ├── __init__.py
 │       │       ├── base.py
 │       │       ├── search_docs.py
 │       │       ├── create_ticket.py
 │       │       └── query_metric.py
 │       ├── providers/
-│       │   ├── __init__.py
-│       │   ├── base.py
+│       │   ├── base.py     # LLMProvider ABC
 │       │   ├── anthropic.py
 │       │   ├── openai.py
 │       │   └── ollama.py
 │       └── rag/
-│           ├── __init__.py
-│           ├── vector_store.py
-│           └── ingestion.py
+│           ├── vector_store.py  # ChromaDB wrapper
+│           └── ingestion.py     # Chunking + embed + index
 └── tests/
-    ├── __init__.py
     ├── test_health.py
     ├── test_providers.py
     ├── test_agent_loop.py
     ├── test_tools.py
     ├── test_chat.py
-    └── test_ollama.py
+    ├── test_ollama.py
+    └── test_rag.py
 ```
 
 ## License
