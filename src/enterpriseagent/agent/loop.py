@@ -1,8 +1,7 @@
-import asyncio
-import random
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
+from enterpriseagent.agent.graph import MaxIterationsError, build_agent_graph, run_agent_graph
 from enterpriseagent.agent.state import AgentState
 from enterpriseagent.agent.tools.base import Tool
 from enterpriseagent.providers.base import LLMProvider, Response
@@ -16,49 +15,11 @@ RAG_SYSTEM_PROMPT = (
 )
 
 
-class MaxIterationsError(Exception):
-    ...
-
-
-@dataclass
-class AgentResponse:
-    content: str | None
-    state: AgentState
-    usage: dict | None = None
-
-
 def find_tool(name: str, tools: list[Tool]) -> Tool | None:
     for t in tools:
         if t.name == name:
             return t
     return None
-
-
-async def _execute_with_retry(
-    provider: LLMProvider,
-    messages: list[dict],
-    tools_schema: list[dict] | None,
-    max_retries: int = 3,
-) -> Response:
-    last_exception = None
-    for attempt in range(max_retries):
-        try:
-            return await provider.generate(messages, tools_schema)
-        except Exception as e:  # noqa: BLE001
-            last_exception = e
-            if attempt < max_retries - 1:
-                delay = (2 ** attempt) + random.uniform(0, 0.5)
-                await asyncio.sleep(delay)
-    raise last_exception  # type: ignore
-
-
-async def _execute_tool(tool: Tool, arguments: dict, timeout: float = 10.0) -> str:
-    try:
-        return await asyncio.wait_for(tool.execute(**arguments), timeout=timeout)
-    except TimeoutError:
-        return f"Error: tool {tool.name} timed out after {timeout}s"
-    except Exception as e:  # noqa: BLE001
-        return f"Error: tool {tool.name} failed: {e}"
 
 
 async def run_agent(
@@ -68,56 +29,20 @@ async def run_agent(
     state: AgentState | None = None,
     fallback_provider: LLMProvider | None = None,
     max_iterations: int = 10,
-) -> AgentResponse:
-    state = state or AgentState()
-    if not any(m.get("role") == "system" for m in state.messages):
-        state.messages.insert(0, {"role": "system", "content": RAG_SYSTEM_PROMPT})
-    state.messages.append({"role": "user", "content": user_message})
-
-    active_provider = provider
-    tools_list = tools or []
-    tools_schema = [{"name": t.name, "description": t.description, "input_schema": t.input_schema} for t in tools_list]
-
-    for _ in range(max_iterations):
-        try:
-            response = await _execute_with_retry(active_provider, state.messages, tools_schema)
-        except Exception:  # noqa: BLE001
-            if fallback_provider and active_provider is not fallback_provider:
-                active_provider = fallback_provider
-                try:
-                    response = await _execute_with_retry(active_provider, state.messages, tools_schema)
-                except Exception as e:  # noqa: BLE001
-                    return AgentResponse(
-                        content=f"Lo siento, no pude procesar tu solicitud. Error: {e}",
-                        state=state,
-                    )
-            else:
-                return AgentResponse(
-                    content="Lo siento, no pude procesar tu solicitud. El servicio no está disponible.",
-                    state=state,
-                )
-
-        if not response.tool_calls:
-            state.messages.append({"role": "assistant", "content": response.content})
-            return AgentResponse(
-                content=response.content,
-                state=state,
-                usage=response.usage,
-            )
-
-        for tc in response.tool_calls:
-            tool = find_tool(tc.name, tools_list)
-            if tool is None:
-                result = f"Error: tool '{tc.name}' not found"
-            else:
-                result = await _execute_tool(tool, tc.arguments)
-
-            state.messages.append({
-                "role": "user" if active_provider.__class__.__name__ == "OpenAIProvider" else "assistant",
-                "content": f"Tool {tc.name} result: {result}",
-            })
-
-    raise MaxIterationsError(f"Agent exceeded max iterations ({max_iterations})")
+) -> AgentState:
+    final_state = await run_agent_graph(
+        user_message=user_message,
+        provider=provider,
+        tools=tools or [],
+        state=state,
+        fallback_provider=fallback_provider,
+        max_iterations=max_iterations,
+    )
+    return AgentResponse(
+        content=final_state.messages[-1]["content"] if final_state.messages else None,
+        state=final_state,
+        usage=final_state.context.get("last_response", None) and getattr(final_state.context["last_response"], "usage", None),
+    )
 
 
 async def run_agent_stream(
@@ -126,22 +51,35 @@ async def run_agent_stream(
     tools: list[Tool] | None = None,
     state: AgentState | None = None,
 ) -> AsyncIterator[dict]:
+    tools_list = tools or []
     state = state or AgentState()
     if not any(m.get("role") == "system" for m in state.messages):
         state.messages.insert(0, {"role": "system", "content": RAG_SYSTEM_PROMPT})
     state.messages.append({"role": "user", "content": user_message})
 
-    tools_list = tools or []
-    tools_schema = [{"name": t.name, "description": t.description, "input_schema": t.input_schema} for t in tools_list]
+    tools_schema = [
+        {"name": t.name, "description": t.description, "input_schema": t.input_schema}
+        for t in tools_list
+    ]
 
     async for event in provider.generate_stream(state.messages, tools_schema):
         yield event
         if event.get("type") == "tool_use":
             tool = find_tool(event["name"], tools_list)
             if tool:
-                result = await _execute_tool(tool, event.get("arguments", {}))
+                try:
+                    result = await tool.execute(**event.get("arguments", {}))
+                except Exception as e:
+                    result = f"Error: {e}"
                 state.messages.append({
                     "role": "assistant",
                     "content": f"Tool {event['name']} result: {result}",
                 })
                 yield {"type": "tool_result", "name": event["name"], "content": result}
+
+
+@dataclass
+class AgentResponse:
+    content: str | None
+    state: AgentState
+    usage: dict | None = None
