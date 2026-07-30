@@ -1,7 +1,7 @@
 import json
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 SUMMARY_PROMPT = (
     "Resume la siguiente conversación en 2-3 oraciones, conservando datos clave "
@@ -102,4 +102,4 @@ class ConversationMemory:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()

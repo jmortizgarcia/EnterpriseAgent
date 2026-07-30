@@ -16,10 +16,10 @@ Read `docs/Guion-Proyecto-Estrella-Jose-Maria-Ortiz.md` first. It is the master 
 | Package mgr | `uv` |
 | API | FastAPI + pydantic |
 | LLMs | Ollama (local, default), Anthropic Claude, OpenAI (abstraction layer) |
-| Orchestration | Custom loop → LangGraph (Sprint 3) |
+| Orchestration | LangGraph + multi-agent supervisor |
 | RAG | Chroma (local) → pgvector (prod) |
-| Eval | Custom harness + Ragas |
-| Guardrails | I/O validation + Presidio (PII) |
+| Eval | Custom harness + LLM-as-judge |
+| Guardrails | I/O validation + regex PII |
 | Container | Docker |
 | Cloud | Cloud Run |
 | CI/CD | GitHub Actions |
@@ -34,7 +34,9 @@ src/enterpriseagent/   # package root (matches pyproject.toml `name`)
 ├── agent/
 │   ├── __init__.py
 │   ├── state.py           # AgentState dataclass
-│   ├── loop.py            # run_agent bucle + error handling + RAG system prompt
+│   ├── loop.py            # run_agent bucle + streaming
+│   ├── graph.py           # LangGraph StateGraph (Sprint 3)
+│   ├── orchestrator.py    # Intent classifier + tool filtering (Sprint 3)
 │   └── tools/
 │       ├── __init__.py
 │       ├── base.py        # Tool ABC
@@ -52,9 +54,19 @@ src/enterpriseagent/   # package root (matches pyproject.toml `name`)
 │   ├── vector_store.py   # ChromaStore wrapper (local ChromaDB)
 │   └── ingestion.py      # chunk_markdown + ingest pipeline
 ├── memory/
+│   └── conversation.py   # SQLite-backed session memory (Sprint 3)
 ├── guardrails/
+│   ├── input.py          # Input validation + prompt injection (Sprint 3)
+│   ├── output.py         # Output validation (Sprint 3)
+│   └── pii.py            # PII detection + redaction (Sprint 3)
 ├── evaluation/
+│   ├── dataset.py        # 40 eval questions (Sprint 4)
+│   ├── harness.py        # run_evaluation + EvalReport (Sprint 4)
+│   └── metrics.py        # llm_judge, faithfulness, cost (Sprint 4)
 └── observability/
+    ├── cost.py           # Pricing tables + calculate_cost (Sprint 4)
+    ├── logger.py         # Structured JSON logging (Sprint 4)
+    └── tracing.py        # LangSmith tracer (Sprint 4)
 ```
 
 ## Essential commands
@@ -67,6 +79,7 @@ uv run pytest -v -k test_name           # single test
 uv run ruff check .                     # lint
 uv run ruff check --fix .               # lint + autofix
 uv run python -m enterpriseagent.rag.ingestion   # index docs into Chroma
+uv run python -m enterpriseagent.evaluation.harness --output eval-report.md  # run eval
 ollama pull nomic-embed-text             # embedding model for RAG
 ```
 
@@ -76,7 +89,9 @@ ollama pull nomic-embed-text             # embedding model for RAG
 - Python 3.14 is the real version; `docs/plan.md` and the guion say 3.12 — treat as stale on this point.
 - Sprint 0 complete: CI/GitHub Actions, Makefile, Dockerfile, test_health.py committed.
 - Sprint 1 complete: Multi-provider, agent loop, tools, FastAPI integration (60 tests).
-- Sprint 2 in progress: RAG pipeline (Chroma + Ollama embeddings + markdown chunking, 45 chunks indexed).
+- Sprint 2 complete: RAG pipeline (Chroma + Ollama embeddings + markdown chunking, 45 chunks indexed).
+- Sprint 3 complete: Memory, LangGraph, guardrails, multi-agent orchestrator.
+- Sprint 4 complete: Evaluation harness (40 questions), observability (cost/logger/tracing), /stats endpoint. 173 tests.
 - `docs/Chuleta.md` is the author's personal interview-prep doc (renamed from `docs/README.md`), not a project README.
 
 ## Project rules (from the guion)

@@ -38,7 +38,6 @@ def build_agent_graph(
     fallback_provider: LLMProvider | None = None,
     use_supervisor: bool = True,
 ):
-    all_tools_schema = _tools_schema(tools)
     all_tools = tools
 
     async def supervisor(state: AgentState) -> dict:

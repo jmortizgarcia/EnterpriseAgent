@@ -13,8 +13,8 @@ Enterprise-ready AI assistant with RAG, multi-provider LLM support, tool use, an
 | LLMs | Ollama (local, default), Anthropic Claude, OpenAI |
 | Orchestration | LangGraph + multi-agent supervisor |
 | RAG | Chroma (local), pgvector (prod) |
-| Eval | Custom harness + Ragas |
-| Guardrails | I/O validation + Presidio (PII) |
+| Eval | Custom harness + LLM-as-judge |
+| Guardrails | I/O validation + regex PII |
 | Container | Docker |
 | Cloud | Cloud Run |
 | CI/CD | GitHub Actions |
@@ -29,13 +29,14 @@ Enterprise-ready AI assistant with RAG, multi-provider LLM support, tool use, an
 - **Multi-agent supervisor** — intent classification by keywords routes to Docs Agent or Actions Agent
 - **Guardrails** — input validation, prompt injection detection (regex), PII redaction (DNI, email, phone) via FastAPI middleware
 - **Streaming chat** — Server-Sent Events (SSE) endpoint for real-time responses
+- **Evaluation harness** — 40-question dataset, LLM-as-judge accuracy, faithfulness scoring, cost tracking
+- **Observability** — structured JSON logging, per-request token/cost tracking, LangSmith tracing (config-driven)
+- **Session stats** — `GET /agent/stats/{session_id}` with aggregated tokens, cost, duration, tools used
 - **CI/CD** — GitHub Actions workflow: `ruff check` → `pytest` → `docker build` on every push
-- **115 passing tests** — provider interface, agent loop, LangGraph, tool execution, RAG, memory, guardrails, orchestrator
+- **173 passing tests** — provider interface, agent loop, LangGraph, tool execution, RAG, memory, guardrails, orchestrator, evaluation, observability
 
 ## 🔜 Roadmap
 
-- Evaluation harness — accuracy, faithfulness, hallucination rate via LLM-as-judge + Ragas
-- Observability — token tracking, cost per request, structured logging
 - Cloud Run deployment — automated CI/CD with Secret Manager, pgvector, and monitoring
 
 ## Quick Start
@@ -84,6 +85,7 @@ curl -X POST localhost:8000/agent/chat ^
 | `make lint` | Lint with ruff |
 | `make build` | Docker build |
 | `make ingest` | Index docs into Chroma (RAG) |
+| `make eval` | Run evaluation (40 questions, LLM-as-judge) |
 
 ## Project Structure
 
@@ -118,6 +120,14 @@ curl -X POST localhost:8000/agent/chat ^
 │       │   ├── input.py    # Input validation + prompt injection
 │       │   ├── output.py   # Output validation
 │       │   └── pii.py      # PII detection + redaction
+│       ├── evaluation/
+│       │   ├── dataset.py  # 40 eval questions (4 categories)
+│       │   ├── harness.py  # run_evaluation + EvalReport
+│       │   └── metrics.py  # llm_judge, faithfulness, cost, precision
+│       ├── observability/
+│       │   ├── cost.py     # Pricing tables + calculate_cost
+│       │   ├── logger.py   # Structured JSON logging
+│       │   └── tracing.py  # LangSmith tracer (config-driven)
 │       └── rag/
 │           ├── vector_store.py  # ChromaDB wrapper
 │           └── ingestion.py     # Chunking + embed + index
@@ -131,7 +141,14 @@ curl -X POST localhost:8000/agent/chat ^
     ├── test_rag.py
     ├── test_memory.py
     ├── test_guardrails.py
-    └── test_orchestrator.py
+    ├── test_orchestrator.py
+    ├── test_evaluation_dataset.py
+    ├── test_evaluation_metrics.py
+    ├── test_evaluation_harness.py
+    ├── test_observability_cost.py
+    ├── test_observability_logger.py
+    ├── test_observability_tracing.py
+    └── test_stats_endpoint.py
 ```
 
 ## License
