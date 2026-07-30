@@ -41,13 +41,13 @@ class ConversationMemory:
 
     def get_context(self, session_id: str) -> list[dict]:
         history = self._load_history(session_id)
-        if not history:
-            return []
-
         messages: list[dict] = []
         summary = self._load_summary(session_id)
         if summary:
             messages.append({"role": "system", "content": f"Resumen de la conversación anterior: {summary}"})
+
+        if not history:
+            return messages
 
         recent = history[-RECENT_TURNS * 2:]
         messages.extend(recent)

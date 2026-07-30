@@ -3,11 +3,11 @@ import re
 MAX_INPUT_LENGTH = 4000
 
 PROMPT_INJECTION_PATTERNS = [
-    r"ignore\s+(your|previous|all)\s+(instructions|prompts|system)",
+    r"ignore\s+(your\s+)?(previous\s+)?(all\s+)?(instructions|prompts|system)",
     r"you\s+are\s+(now|henceforth)",
     r"system\s+prompt:",
     r"forget\s+(everything|all\s+previous)",
-    r"override\s+(your|previous)\s+(instructions|directives)",
+    r"override\s+(your\s+)?(previous\s+)?(instructions|directives)",
     r"do\s+not\s+follow\s+(the\s+)?(instructions|rules|guidelines)",
     r"act\s+as\s+(if\s+you\s+are|though\s+you\s+are)\s+(a\s+)?(human|admin|system)",
 ]
