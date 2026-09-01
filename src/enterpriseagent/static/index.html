@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enterprise Agent</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <div>
+        <h1>Enterprise Agent</h1>
+        <p>Nimbus Cloud Platform · Asistente con RAG, tools y memoria</p>
+      </div>
+    </div>
+    <div class="controls">
+      <label for="provider">Proveedor</label>
+      <select id="provider">
+        <option value="ollama">Ollama (local)</option>
+        <option value="claude">Claude</option>
+        <option value="openai">OpenAI</option>
+      </select>
+      <label for="sessionId">Sesión</label>
+      <input id="sessionId" type="text" placeholder="auto" title="ID de sesión para memoria. Vacío = sin memoria." />
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="chat-card">
+      <section id="messages" class="messages">
+        <div class="welcome">
+          <h2>¿En qué puedo ayudarte?</h2>
+          <p>Pregúntame sobre Nimbus Cloud Platform o pídeme que realice una acción.</p>
+          <div class="suggestions" id="suggestions"></div>
+        </div>
+      </section>
+
+      <footer class="composer">
+        <form id="chatForm" autocomplete="off">
+          <textarea id="input" rows="1" placeholder="Escribe un mensaje…" maxlength="4000"></textarea>
+          <button type="submit" id="sendBtn" aria-label="Enviar">➤</button>
+        </form>
+        <p class="hint">El agente se basa en la documentación de Nimbus y puede crear tickets o consultar métricas.</p>
+      </footer>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

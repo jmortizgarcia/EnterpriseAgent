@@ -17,17 +17,20 @@ Read `docs/Guion-Proyecto-Estrella-Jose-Maria-Ortiz.md` first. It is the master 
 | API | FastAPI + pydantic |
 | LLMs | Ollama (local, default), Anthropic Claude, OpenAI (abstraction layer) |
 | Orchestration | LangGraph + multi-agent supervisor |
-| RAG | Chroma (local) → pgvector (prod) |
+| RAG | Chroma (local) / pgvector (prod), config-driven |
 | Eval | Custom harness + LLM-as-judge |
 | Guardrails | I/O validation + regex PII |
-| Container | Docker |
+| Container | Docker (Alpine build → slim runtime) |
 | Cloud | Cloud Run |
-| CI/CD | GitHub Actions |
+| CI/CD | GitHub Actions (CI + Cloud Run deploy) |
 
 ## Package layout
 
 ```
-src/enterpriseagent/   # package root (matches pyproject.toml `name`)
+├── .github/workflows/
+│   ├── ci.yml              # Ruff → pytest on every push
+│   └── deploy.yml           # Cloud Run deploy via WIF
+├── src/enterpriseagent/     # package root (matches pyproject.toml `name`)
 ├── __init__.py          # must define main() — entry point `enterpriseagent:main`
 ├── main.py              # FastAPI app
 ├── config.py            # pydantic-settings
@@ -51,7 +54,7 @@ src/enterpriseagent/   # package root (matches pyproject.toml `name`)
 │   └── ollama.py         # Ollama (local LLM) implementation
 ├── rag/
 │   ├── __init__.py
-│   ├── vector_store.py   # ChromaStore wrapper (local ChromaDB)
+│   ├── vector_store.py   # ChromaStore + PgVectorStore + get_vector_store()
 │   └── ingestion.py      # chunk_markdown + ingest pipeline
 ├── memory/
 │   └── conversation.py   # SQLite-backed session memory (Sprint 3)
@@ -80,6 +83,7 @@ uv run ruff check .                     # lint
 uv run ruff check --fix .               # lint + autofix
 uv run python -m enterpriseagent.rag.ingestion   # index docs into Chroma
 uv run python -m enterpriseagent.evaluation.harness --output eval-report.md  # run eval
+docker compose up -d                    # start pgvector
 ollama pull nomic-embed-text             # embedding model for RAG
 ```
 
@@ -92,6 +96,7 @@ ollama pull nomic-embed-text             # embedding model for RAG
 - Sprint 2 complete: RAG pipeline (Chroma + Ollama embeddings + markdown chunking, 45 chunks indexed).
 - Sprint 3 complete: Memory, LangGraph, guardrails, multi-agent orchestrator.
 - Sprint 4 complete: Evaluation harness (40 questions), observability (cost/logger/tracing), /stats endpoint. 173 tests.
+- Sprint 5 complete: pgvector, production Dockerfile, Cloud Run deploy, CI/CD. (Manual GCP setup pending.)
 - `docs/Chuleta.md` is the author's personal interview-prep doc (renamed from `docs/README.md`), not a project README.
 
 ## Project rules (from the guion)

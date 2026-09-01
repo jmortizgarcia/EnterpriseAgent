@@ -1,0 +1,55 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+env:
+  SERVICE_NAME: enterprise-agent
+  REGION: europe-west1
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pytest -v --timeout 120
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          source: .
+          env_vars: |
+            ENVIRONMENT=production
+            PROVIDER=claude
+            VECTOR_STORE=pgvector
+            DATABASE_URL_PG=${{ secrets.DATABASE_URL_PG }}
+          secrets: |
+            ANTHROPIC_API_KEY=anthropic-api-key:latest
+            OPENAI_API_KEY=openai-api-key:latest
+            LANGSMITH_API_KEY=langsmith-api-key:latest

@@ -1,9 +1,11 @@
 import json
 import time
 from collections import defaultdict
+from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from enterpriseagent.agent.loop import run_agent, run_agent_stream
@@ -22,9 +24,12 @@ from enterpriseagent.providers import (
     OllamaProvider,
     OpenAIProvider,
 )
-from enterpriseagent.rag.vector_store import ChromaStore
+from enterpriseagent.rag.vector_store import get_vector_store
 
 app = FastAPI(title="Enterprise Agent", version="0.1.0")
+
+STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 _memory = ConversationMemory()
 _stats: dict[str, list[dict]] = defaultdict(list)
@@ -76,12 +81,18 @@ def get_provider(name: str | None = None) -> LLMProvider:
 
 
 def get_tools() -> list:
-    return [SearchDocs(store=ChromaStore()), CreateTicket(), QueryMetric()]
+    store = get_vector_store()
+    return [SearchDocs(store=store), CreateTicket(), QueryMetric()]
 
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/")
+async def index():
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.post("/agent/chat")

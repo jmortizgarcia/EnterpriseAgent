@@ -63,3 +63,109 @@ class ChromaStore:
             resp.raise_for_status()
             data = resp.json()
             return data["embeddings"]
+
+
+class PgVectorStore:
+    VECTOR_DIM = 768
+
+    def __init__(self, database_url: str | None = None) -> None:
+        self._url = database_url or settings.database_url_pg
+        self._engine = None
+        self._initialized = False
+
+    async def _ensure_setup(self) -> None:
+        if self._initialized:
+            return
+        from sqlalchemy import create_engine, text
+        from sqlalchemy.orm import sessionmaker
+
+        self._engine = create_engine(self._url)
+        Session = sessionmaker(bind=self._engine)
+        with Session() as session:
+            session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS documents (
+                    id TEXT PRIMARY KEY,
+                    content TEXT NOT NULL,
+                    metadata JSONB DEFAULT '{}',
+                    embedding vector(768)
+                )
+            """))
+            session.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_documents_embedding
+                ON documents USING ivfflat (embedding vector_cosine_ops)
+                WITH (lists = 100)
+            """))
+            session.commit()
+        self._initialized = True
+
+    async def add(self, chunks: list[dict]) -> None:
+        from sqlalchemy import text
+
+        await self._ensure_setup()
+        texts = [c["text"] for c in chunks]
+        embeddings = await self._embed(texts)
+        from sqlalchemy.orm import sessionmaker
+
+        Session = sessionmaker(bind=self._engine)
+        with Session() as session:
+            for i, chunk in enumerate(chunks):
+                emb = embeddings[i]
+                emb_str = "[" + ",".join(str(x) for x in emb) + "]"
+                session.execute(
+                    text("""
+                        INSERT INTO documents (id, content, metadata, embedding)
+                        VALUES (:id, :content, :metadata, :embedding::vector)
+                        ON CONFLICT (id) DO UPDATE
+                        SET content = EXCLUDED.content,
+                            metadata = EXCLUDED.metadata,
+                            embedding = EXCLUDED.embedding
+                    """),
+                    {
+                        "id": chunk["id"],
+                        "content": chunk["text"],
+                        "metadata": str(chunk.get("metadata", {})),
+                        "embedding": emb_str,
+                    },
+                )
+            session.commit()
+
+    async def similarity_search(self, query: str, k: int = 5) -> list[ScoredChunk]:
+        from sqlalchemy import text
+        from sqlalchemy.orm import sessionmaker
+
+        await self._ensure_setup()
+        query_embedding = (await self._embed([query]))[0]
+        emb_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
+        Session = sessionmaker(bind=self._engine)
+        with Session() as session:
+            rows = session.execute(
+                text("""
+                    SELECT content, metadata,
+                           1 - (embedding <=> :embedding::vector) AS score
+                    FROM documents
+                    ORDER BY embedding <=> :embedding::vector
+                    LIMIT :k
+                """),
+                {"embedding": emb_str, "k": k},
+            ).fetchall()
+        return [
+            ScoredChunk(text=row[0], score=row[2], metadata=row[1] or {})
+            for row in rows
+        ]
+
+    async def _embed(self, texts: list[str]) -> list[list[float]]:
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(
+                f"{settings.ollama_base_url}/api/embed",
+                json={"model": settings.embedding_model, "input": texts},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["embeddings"]
+
+
+def get_vector_store() -> ChromaStore | PgVectorStore:
+    if settings.vector_store == "pgvector":
+        return PgVectorStore()
+    return ChromaStore()

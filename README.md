@@ -12,12 +12,12 @@ Enterprise-ready AI assistant with RAG, multi-provider LLM support, tool use, an
 | API | FastAPI + Pydantic |
 | LLMs | Ollama (local, default), Anthropic Claude, OpenAI |
 | Orchestration | LangGraph + multi-agent supervisor |
-| RAG | Chroma (local), pgvector (prod) |
+| RAG | Chroma (local) / pgvector (prod), config-driven |
 | Eval | Custom harness + LLM-as-judge |
 | Guardrails | I/O validation + regex PII |
-| Container | Docker |
-| Cloud | Cloud Run |
-| CI/CD | GitHub Actions |
+| Container | Docker (Alpine build → slim runtime) |
+| Cloud | Cloud Run (config-driven vector store, WIF auth) |
+| CI/CD | GitHub Actions (CI + Cloud Run deploy via Workload Identity Federation) |
 
 ## ✅ Implemented
 
@@ -32,12 +32,14 @@ Enterprise-ready AI assistant with RAG, multi-provider LLM support, tool use, an
 - **Evaluation harness** — 40-question dataset, LLM-as-judge accuracy, faithfulness scoring, cost tracking
 - **Observability** — structured JSON logging, per-request token/cost tracking, LangSmith tracing (config-driven)
 - **Session stats** — `GET /agent/stats/{session_id}` with aggregated tokens, cost, duration, tools used
-- **CI/CD** — GitHub Actions workflow: `ruff check` → `pytest` → `docker build` on every push
+- **pgvector support** — `PgVectorStore` with IVFFlat indexing, config-driven via `VECTOR_STORE` env var
+- **Production Dockerfile** — multi-stage (Alpine build → slim runtime), `:8080` port, Cloud Run ready
+- **CI/CD** — GitHub Actions CI (ruff + pytest) + Cloud Run deploy with Workload Identity Federation
 - **173 passing tests** — provider interface, agent loop, LangGraph, tool execution, RAG, memory, guardrails, orchestrator, evaluation, observability
 
 ## 🔜 Roadmap
 
-- Cloud Run deployment — automated CI/CD with Secret Manager, pgvector, and monitoring
+- Monitorización — Cloud Monitoring dashboard + Terraform infra as code
 
 ## Quick Start
 
@@ -74,7 +76,49 @@ curl -X POST localhost:8000/agent/chat ^
 
 ## Demo
 
-> 📸 *Screenshot coming soon — agent responding with cited sources from the RAG corpus*
+```powershell
+curl -X POST localhost:8000/agent/chat ^
+  -H "Content-Type: application/json" ^
+  -d "{\"message\":\"¿cuál es el SLA del plan enterprise?\",\"provider\":\"ollama\"}"
+
+# → "El plan Enterprise tiene un SLA del 99.99% de disponibilidad mensual [1]..."
+```
+
+El agente responde con fuentes citadas desde el corpus RAG de 8 documentos.
+
+## Deployment (manual setup)
+
+El CI/CD está listo en `.github/workflows/deploy.yml`. Para activarlo:
+
+```powershell
+# 1. GCP project + APIs
+gcloud projects create enterprise-agent --name="Enterprise Agent"
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
+
+# 2. Crear repositorio Docker
+gcloud artifacts repositories create enterprise-agent ^
+  --repository-format=docker --location=europe-west1
+
+# 3. Subir API keys como secrets
+echo -n "sk-ant-..." | gcloud secrets create anthropic-api-key --data-file=-
+echo -n "sk-proj-..." | gcloud secrets create openai-api-key --data-file=-
+echo -n "..." | gcloud secrets create langsmith-api-key --data-file=-
+
+# 4. Base de datos con pgvector (opción recomendada: Neon serverless)
+#    Crear cuenta en neon.tech → copiar DATABASE_URL
+
+# 5. Workload Identity Federation para GitHub Actions
+#    https://docs.github.com/en/actions/security-for-github-actions/
+#      security-hardening-your-deployments/
+#      configuring-openid-connect-in-google-cloud-platform
+
+# 6. Setear secrets en GitHub → Settings > Secrets and variables > Actions
+#    GCP_PROJECT_ID (var), WIF_PROVIDER (secret),
+#    DEPLOY_SERVICE_ACCOUNT (secret), DATABASE_URL_PG (secret)
+
+# 7. Push a main → deploy automático
+git add . && git commit -m "Ready for production" && git push origin main
+```
 
 ## Commands
 
@@ -86,13 +130,19 @@ curl -X POST localhost:8000/agent/chat ^
 | `make build` | Docker build |
 | `make ingest` | Index docs into Chroma (RAG) |
 | `make eval` | Run evaluation (40 questions, LLM-as-judge) |
+| `docker compose up -d` | Start pgvector for production-like dev |
 
 ## Project Structure
 
 ```
 ├── pyproject.toml          # Deps + entry points
-├── Dockerfile
+├── Dockerfile              # Multi-stage (Alpine build → slim)
+├── docker-compose.yml      # pgvector for production-like dev
 ├── Makefile
+├── .github/
+│   └── workflows/
+│       ├── ci.yml          # lint + test on push
+│       └── deploy.yml      # Cloud Run via WIF (requires manual GCP setup)
 ├── data/
 │   └── docs/               # RAG corpus (8 markdown files)
 ├── src/
@@ -129,7 +179,7 @@ curl -X POST localhost:8000/agent/chat ^
 │       │   ├── logger.py   # Structured JSON logging
 │       │   └── tracing.py  # LangSmith tracer (config-driven)
 │       └── rag/
-│           ├── vector_store.py  # ChromaDB wrapper
+│           ├── vector_store.py  # ChromaStore + PgVectorStore + factory
 │           └── ingestion.py     # Chunking + embed + index
 └── tests/
     ├── test_health.py
