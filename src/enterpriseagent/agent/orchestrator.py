@@ -1,7 +1,7 @@
 from enterpriseagent.agent.tools.base import Tool
 
 DOCS_TOOLS = {"search_docs"}
-ACTION_TOOLS = {"create_ticket", "query_metric"}
+ACTION_TOOLS = {"create_ticket", "edit_ticket", "get_ticket", "list_tickets", "delete_ticket", "query_metric"}
 
 INTENT_KEYWORDS: dict[str, list[str]] = {
     "documentation": [

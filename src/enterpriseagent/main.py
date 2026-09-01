@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from enterpriseagent.agent.loop import run_agent, run_agent_stream
 from enterpriseagent.agent.state import AgentState
-from enterpriseagent.agent.tools import CreateTicket, EditTicket, ListTickets, DeleteTicket, QueryMetric, SearchDocs
+from enterpriseagent.agent.tools import CreateTicket, EditTicket, GetTicket, ListTickets, DeleteTicket, QueryMetric, SearchDocs
 from enterpriseagent.config import settings
 from enterpriseagent.guardrails.input import validate_input
 from enterpriseagent.guardrails.pii import detect_pii, redact_pii
@@ -102,6 +102,7 @@ def get_tools() -> list:
         SearchDocs(store=store),
         CreateTicket(_ticket_repository),
         EditTicket(_ticket_repository),
+        GetTicket(_ticket_repository),
         ListTickets(_ticket_repository),
         DeleteTicket(_ticket_repository),
         QueryMetric()
