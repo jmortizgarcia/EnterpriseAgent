@@ -924,3 +924,252 @@ body {
   width: 16px;
   height: 16px;
 }
+
+/* ========== HISTORIAL Y RAG STYLES ========== */
+
+.history-container, .rag-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.history-header, .rag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.history-header h2, .rag-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.history-controls, .rag-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-input {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent)22;
+}
+
+/* Session List Panel */
+.session-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+  grid-auto-rows: max-content;
+}
+
+.session-history-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.session-history-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.session-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.session-id {
+  font-weight: 600;
+  color: var(--accent);
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.session-date {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.session-preview {
+  font-size: 14px;
+  color: var(--text);
+  margin: 8px 0;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+.session-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.turns, .summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* RAG Stats */
+.rag-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rag-stats .stat {
+  background: var(--bg-secondary);
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+.rag-stats .label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.rag-stats .value {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Documents List */
+.rag-documents {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.rag-documents h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rag-document-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.rag-document-section h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chunk-count {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+  background: var(--border);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.rag-document-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rag-document-section li {
+  font-size: 13px;
+  color: var(--text);
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 6px;
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+}
+
+/* Empty states */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty-state p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.empty-state .hint {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .rag-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .history-controls {
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    min-width: 100%;
+  }
+}
+

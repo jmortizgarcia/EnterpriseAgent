@@ -64,6 +64,28 @@ class ChromaStore:
             data = resp.json()
             return data["embeddings"]
 
+    def get_all_documents(self) -> list[dict]:
+        """Get all indexed documents with metadata"""
+        docs = self.collection.get(include=["embeddings", "metadatas", "documents"])
+        result = []
+        if docs and docs["ids"]:
+            for i, doc_id in enumerate(docs["ids"]):
+                result.append({
+                    "id": doc_id,
+                    "text": docs["documents"][i] if docs["documents"] else "",
+                    "metadata": docs["metadatas"][i] if docs["metadatas"] else {},
+                })
+        return result
+
+    def get_collection_info(self) -> dict:
+        """Get collection statistics"""
+        docs = self.collection.get(include=[])
+        return {
+            "name": "docs",
+            "count": len(docs.get("ids", [])),
+            "embedding_model": settings.embedding_model,
+        }
+
 
 class PgVectorStore:
     VECTOR_DIM = 768

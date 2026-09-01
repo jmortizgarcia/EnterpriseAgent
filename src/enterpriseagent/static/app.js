@@ -25,6 +25,27 @@
   const emptyTicketsEl = document.getElementById("emptyTickets");
   const refreshTicketsBtn = document.getElementById("refreshTickets");
 
+  // Elementos para historial
+  const historyViewEl = document.getElementById("historyView");
+  const historyTabEl = document.getElementById("historyTab");
+  const sessionListPanelEl = document.getElementById("sessionListPanel");
+  const emptyHistoryEl = document.getElementById("emptyHistory");
+  const historySearchInput = document.getElementById("historySearchInput");
+  const refreshHistoryBtn = document.getElementById("refreshHistory");
+
+  // Elementos para RAG
+  const ragViewEl = document.getElementById("ragView");
+  const ragTabEl = document.getElementById("ragTab");
+  const documentsListEl = document.getElementById("documentsList");
+  const emptyDocumentsEl = document.getElementById("emptyDocuments");
+  const uploadDocBtn = document.getElementById("uploadDocBtn");
+  const reindexBtn = document.getElementById("reindexBtn");
+  const refreshRagBtn = document.getElementById("refreshRag");
+  const fileInput = document.getElementById("fileInput");
+  const ragChunkCount = document.getElementById("ragChunkCount");
+  const ragEmbeddingModel = document.getElementById("ragEmbeddingModel");
+  const ragStatus = document.getElementById("ragStatus");
+
   const SUGGESTIONS = [
     "¿Qué es Nimbus Cloud?",
     "¿Cuál es el SLA del plan Enterprise?",
@@ -38,7 +59,7 @@
   let busy = false;
   let currentMessages = [];
   let currentStats = { input_tokens: 0, output_tokens: 0, total_cost: 0 };
-  let currentView = "chat"; // "chat" | "tickets"
+  let currentView = "chat"; // "chat" | "tickets" | "history" | "rag"
   let abortController = null; // Para cancelar requests en progreso
 
   function esc(s) {
@@ -409,30 +430,49 @@
     }
   }
 
-  /* ======== Gestión de Tickets ======== */
+  /* ======== Gestión de Vistas ======== */
   function switchView(view) {
     currentView = view;
     const chatSidebar = document.getElementById("chatSidebar");
     const ticketsSidebar = document.getElementById("ticketsSidebar");
     
+    // Ocultar todas las vistas
+    chatViewEl.classList.remove("active");
+    ticketViewEl.classList.remove("active");
+    historyViewEl.classList.remove("active");
+    ragViewEl.classList.remove("active");
+
+    // Desactivar todos los tabs
+    chatTabEl.classList.remove("active");
+    ticketsTabEl.classList.remove("active");
+    historyTabEl.classList.remove("active");
+    ragTabEl.classList.remove("active");
+
+    // Mostrar vista activa
     if (view === "chat") {
       chatViewEl.classList.add("active");
-      ticketViewEl.classList.remove("active");
       chatTabEl.classList.add("active");
-      ticketsTabEl.classList.remove("active");
-      sidebarEl.classList.remove("hidden"); // Mostrar sidebar en chat
+      sidebarEl.classList.remove("hidden");
       if (chatSidebar) chatSidebar.style.display = "block";
       if (ticketsSidebar) ticketsSidebar.style.display = "none";
-      newChat(); // Resetear historial al ir a chat
-    } else {
-      chatViewEl.classList.remove("active");
+      newChat();
+    } else if (view === "tickets") {
       ticketViewEl.classList.add("active");
-      chatTabEl.classList.remove("active");
       ticketsTabEl.classList.add("active");
-      sidebarEl.classList.remove("hidden"); // Mostrar sidebar
+      sidebarEl.classList.remove("hidden");
       if (chatSidebar) chatSidebar.style.display = "none";
       if (ticketsSidebar) ticketsSidebar.style.display = "block";
       loadTickets();
+    } else if (view === "history") {
+      historyViewEl.classList.add("active");
+      historyTabEl.classList.add("active");
+      sidebarEl.classList.add("hidden");
+      loadSessions();
+    } else if (view === "rag") {
+      ragViewEl.classList.add("active");
+      ragTabEl.classList.add("active");
+      sidebarEl.classList.add("hidden");
+      loadRagDocuments();
     }
   }
 
@@ -929,6 +969,186 @@
     sidebarEl.classList.toggle("open");
   });
 
+  /* ======== Gestión de Historial de Sesiones ======== */
+  let allSessions = [];
+
+  async function loadSessions() {
+    try {
+      const resp = await fetch("/agent/sessions");
+      const data = await resp.json();
+      allSessions = data.sessions || [];
+      renderSessions(allSessions);
+    } catch (err) {
+      console.error("Error loading sessions:", err);
+      showToast("Error al cargar sesiones");
+    }
+  }
+
+  function renderSessions(sessions) {
+    sessionListPanelEl.innerHTML = "";
+    
+    if (sessions.length === 0) {
+      emptyHistoryEl.style.display = "flex";
+      return;
+    }
+    
+    emptyHistoryEl.style.display = "none";
+    
+    sessions.forEach(session => {
+      const card = document.createElement("div");
+      card.className = "session-history-card";
+      const date = new Date(session.updated_at).toLocaleString("es-ES");
+      card.innerHTML = `
+        <div class="session-history-header">
+          <span class="session-id">${session.session_id.slice(0, 20)}...</span>
+          <span class="session-date">${date}</span>
+        </div>
+        <p class="session-preview">${esc(session.preview || "Sin contenido")}</p>
+        <div class="session-meta">
+          <span class="turns">💬 ${session.turn_count} turnos</span>
+          ${session.summary ? `<span class="summary">📝 ${esc(session.summary.slice(0, 30))}...</span>` : ""}
+        </div>
+      `;
+      card.addEventListener("click", () => viewSessionDetails(session.session_id));
+      sessionListPanelEl.appendChild(card);
+    });
+  }
+
+  function filterSessions() {
+    const query = historySearchInput.value.toLowerCase();
+    const filtered = allSessions.filter(s => 
+      s.session_id.toLowerCase().includes(query) ||
+      s.preview.toLowerCase().includes(query) ||
+      s.summary.toLowerCase().includes(query)
+    );
+    renderSessions(filtered);
+  }
+
+  async function viewSessionDetails(sessionId) {
+    try {
+      const [histResp, statsResp] = await Promise.all([
+        fetch(`/agent/history/${sessionId}`),
+        fetch(`/agent/stats/${sessionId}`)
+      ]);
+      const history = await histResp.json();
+      const stats = await statsResp.json();
+      
+      // Mostrar modal con detalles
+      alert(`Sesión: ${sessionId}\nTurnos: ${history.messages.length / 2}\nTokens: ${stats.total_tokens}\nCoste: $${stats.total_cost}`);
+    } catch (err) {
+      console.error("Error loading session details:", err);
+      showToast("Error al cargar detalles de sesión");
+    }
+  }
+
+  /* ======== Gestión de Documentación RAG ======== */
+  
+  async function loadRagDocuments() {
+    try {
+      ragStatus.textContent = "⏳ Cargando...";
+      const resp = await fetch("/rag/documents");
+      const data = await resp.json();
+      
+      // Actualizar stats
+      const info = data.collection_info || {};
+      ragChunkCount.textContent = data.total_chunks || 0;
+      ragEmbeddingModel.textContent = info.embedding_model || "nomic-embed-text";
+      ragStatus.textContent = "✓ Listo";
+      
+      // Renderizar documentos
+      renderRagDocuments(data.documents || []);
+    } catch (err) {
+      console.error("Error loading RAG documents:", err);
+      ragStatus.textContent = "✕ Error";
+      showToast("Error al cargar documentos");
+    }
+  }
+
+  function renderRagDocuments(documents) {
+    documentsListEl.innerHTML = "";
+    
+    if (documents.length === 0) {
+      emptyDocumentsEl.style.display = "flex";
+      return;
+    }
+    
+    emptyDocumentsEl.style.display = "none";
+    
+    // Group by source
+    const bySource = {};
+    documents.forEach(doc => {
+      const source = doc.metadata?.source || "unknown";
+      if (!bySource[source]) bySource[source] = [];
+      bySource[source].push(doc);
+    });
+    
+    Object.entries(bySource).forEach(([source, docs]) => {
+      const section = document.createElement("div");
+      section.className = "rag-document-section";
+      section.innerHTML = `<h4>${source} <span class="chunk-count">(${docs.length} chunks)</span></h4>`;
+      
+      const list = document.createElement("ul");
+      docs.slice(0, 3).forEach((doc, idx) => {
+        const item = document.createElement("li");
+        const preview = doc.text.slice(0, 60) + (doc.text.length > 60 ? "..." : "");
+        item.textContent = `Chunk ${idx + 1}: ${preview}`;
+        list.appendChild(item);
+      });
+      
+      if (docs.length > 3) {
+        const more = document.createElement("li");
+        more.textContent = `... y ${docs.length - 3} más chunks`;
+        more.style.fontStyle = "italic";
+        list.appendChild(more);
+      }
+      
+      section.appendChild(list);
+      documentsListEl.appendChild(section);
+    });
+  }
+
+  async function uploadRagDocument(file) {
+    try {
+      ragStatus.textContent = "⏳ Subiendo...";
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const resp = await fetch("/rag/upload", {
+        method: "POST",
+        body: formData
+      });
+      
+      if (!resp.ok) throw new Error(await resp.text());
+      
+      const result = await resp.json();
+      showToast(`Subido: ${result.chunks_added} chunks indexados`);
+      ragStatus.textContent = "✓ Listo";
+      await loadRagDocuments();
+    } catch (err) {
+      console.error("Error uploading document:", err);
+      ragStatus.textContent = "✕ Error";
+      showToast(`Error al subir: ${err.message}`);
+    }
+  }
+
+  async function reindexRagDocuments() {
+    try {
+      ragStatus.textContent = "⏳ Reindexando...";
+      const resp = await fetch("/rag/reindex", { method: "POST" });
+      
+      if (!resp.ok) throw new Error(await resp.text());
+      
+      const result = await resp.json();
+      showToast(`Reindexado: ${result.details.total_chunks} chunks`);
+      ragStatus.textContent = "✓ Listo";
+      await loadRagDocuments();
+    } catch (err) {
+      console.error("Error reindexing:", err);
+      ragStatus.textContent = "✕ Error";
+      showToast(`Error al reindexar: ${err.message}`);
+    }
+  }
+
   // Click en brand para ir al inicio
   document.getElementById("brandHome").addEventListener("click", () => {
     switchView("chat");
@@ -937,7 +1157,24 @@
   // Cambiar entre vistas
   chatTabEl.addEventListener("click", () => switchView("chat"));
   ticketsTabEl.addEventListener("click", () => switchView("tickets"));
+  historyTabEl.addEventListener("click", () => switchView("history"));
+  ragTabEl.addEventListener("click", () => switchView("rag"));
   refreshTicketsBtn.addEventListener("click", loadTickets);
+  refreshHistoryBtn.addEventListener("click", loadSessions);
+  refreshRagBtn.addEventListener("click", loadRagDocuments);
+
+  // RAG file upload
+  uploadDocBtn.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", async (e) => {
+    if (e.target.files.length > 0) {
+      await uploadRagDocument(e.target.files[0]);
+      fileInput.value = ""; // Reset input
+    }
+  });
+  reindexBtn.addEventListener("click", reindexRagDocuments);
+
+  // History search
+  historySearchInput.addEventListener("input", filterSessions);
 
   // Cerrar sidebar al clickear en un item (en mobile)
   sessionListEl.addEventListener("click", () => {

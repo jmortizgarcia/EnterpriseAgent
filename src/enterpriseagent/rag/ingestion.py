@@ -116,19 +116,33 @@ def _add_chunk(
     })
 
 
-async def ingest_docs(docs_path: str = "data/docs") -> None:
+async def ingest_docs(docs_path: str = "data/docs") -> dict:
     store = ChromaStore()
     files = glob.glob(f"{docs_path}/**/*.md", recursive=True)
+    
+    ingestion_results = []
+    total_chunks = 0
 
     for file_path in sorted(files):
         content = await asyncio.to_thread(_read_file, file_path)
         chunks = chunk_markdown(content, source=file_path)
         if chunks:
             await store.add(chunks)
+            ingestion_results.append({
+                "file": os.path.basename(file_path),
+                "chunks": len(chunks)
+            })
+            total_chunks += len(chunks)
             print(f"  {os.path.basename(file_path)}: {len(chunks)} chunks")
 
     count = store.collection.count()
     print(f"\nDone. Total chunks indexed: {count}")
+    
+    return {
+        "total_chunks": count,
+        "files_processed": len(ingestion_results),
+        "details": ingestion_results
+    }
 
 
 def _read_file(path: str) -> str:

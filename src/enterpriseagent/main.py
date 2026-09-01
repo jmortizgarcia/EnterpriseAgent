@@ -3,14 +3,22 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from enterpriseagent.agent.loop import run_agent, run_agent_stream
 from enterpriseagent.agent.state import AgentState
-from enterpriseagent.agent.tools import CreateTicket, EditTicket, GetTicket, ListTickets, DeleteTicket, QueryMetric, SearchDocs
+from enterpriseagent.agent.tools import (
+    CreateTicket,
+    DeleteTicket,
+    EditTicket,
+    GetTicket,
+    ListTickets,
+    QueryMetric,
+    SearchDocs,
+)
 from enterpriseagent.config import settings
 from enterpriseagent.guardrails.input import validate_input
 from enterpriseagent.guardrails.pii import detect_pii, redact_pii
@@ -24,7 +32,8 @@ from enterpriseagent.providers import (
     OllamaProvider,
     OpenAIProvider,
 )
-from enterpriseagent.rag.vector_store import get_vector_store
+from enterpriseagent.rag.ingestion import chunk_markdown, ingest_docs
+from enterpriseagent.rag.vector_store import ChromaStore, get_vector_store
 from enterpriseagent.storage.ticket_repository import TicketRepository
 
 app = FastAPI(title="Enterprise Agent", version="0.1.0")
@@ -35,7 +44,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 _memory = ConversationMemory()
 _stats: dict[str, list[dict]] = defaultdict(list)
 _ticket_repository = TicketRepository()  # Repositorio singleton para persistencia de tickets
-
+_chroma_store = ChromaStore()  # RAG vector store singleton
 
 
 @app.middleware("http")
@@ -200,7 +209,6 @@ async def chat_stream(request: ChatRequest):
 @app.get("/agent/history/{session_id}")
 async def get_session_history(session_id: str):
     """Get full conversation history for a session"""
-    messages = _memory.get_context(session_id)
     # Get the full history, not just recent context
     history = _memory._load_history(session_id)
     return {"messages": history or [], "session_id": session_id}
@@ -239,6 +247,13 @@ async def get_session_stats(session_id: str):
         "avg_duration_ms": round(total_duration / len(entries), 2) if entries else 0.0,
         "tools_used": tools_used,
     }
+
+
+@app.get("/agent/sessions")
+async def list_all_sessions():
+    """List all sessions with metadata (for history viewer)"""
+    sessions = _memory.list_all_sessions()
+    return {"sessions": sessions, "total": len(sessions)}
 
 
 @app.get("/tickets")
@@ -299,4 +314,89 @@ async def delete_ticket(ticket_id: int):
             content={"error": "Ticket not found", "ticket_id": ticket_id}
         )
     return {"message": f"Ticket #{ticket_id} deleted", "ticket_id": ticket_id}
+
+
+# ============= RAG ENDPOINTS =============
+
+@app.get("/rag/documents")
+async def list_rag_documents():
+    """List all indexed documents in ChromaDB"""
+    try:
+        docs = _chroma_store.get_all_documents()
+        info = _chroma_store.get_collection_info()
+        return {
+            "documents": docs,
+            "collection_info": info,
+            "total_chunks": len(docs),
+        }
+    except OSError as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"{e!s}"}
+        )
+
+
+@app.get("/rag/stats")
+async def get_rag_stats():
+    """Get RAG collection statistics"""
+    try:
+        info = _chroma_store.get_collection_info()
+        return info
+    except OSError as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"{e!s}"}
+        )
+
+
+
+@app.post("/rag/upload")
+async def upload_documentation(file: UploadFile):
+    """Upload and ingest a markdown file into RAG"""
+    try:
+        if not file.filename.endswith(".md"):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Only .md files are supported"}
+            )
+
+        content = await file.read()
+        text_content = content.decode("utf-8")
+
+        # Chunk and ingest
+        chunks = chunk_markdown(text_content, source=file.filename)
+        if not chunks:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No content extracted from file"}
+            )
+
+        await _chroma_store.add(chunks)
+
+        return {
+            "message": f"Successfully ingested {file.filename}",
+            "chunks_added": len(chunks),
+            "source": file.filename,
+        }
+    except OSError as e:  # Changed from bare Exception
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Upload failed: {e!s}"}
+        )
+
+
+@app.post("/rag/reindex")
+async def reindex_documentation():
+    """Reindex all documentation from data/docs directory"""
+    try:
+        result = await ingest_docs()
+        return {
+            "message": "Reindexing complete",
+            "details": result,
+        }
+    except OSError as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Reindexing failed: {e!s}"}
+        )
 

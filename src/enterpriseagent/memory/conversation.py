@@ -100,6 +100,29 @@ class ConversationMemory:
             )
         self._conn.commit()
 
+    def list_all_sessions(self) -> list[dict]:
+        """List all sessions with metadata (no full history)"""
+        rows = self._conn.execute(
+            "SELECT session_id, summary, updated_at FROM sessions ORDER BY updated_at DESC"
+        ).fetchall()
+        sessions = []
+        for row in rows:
+            session_id, summary, updated_at = row
+            history = self._load_history(session_id)
+            turn_count = len(history) // 2
+            preview = ""
+            if history:
+                last_msg = history[-1].get("content", "")
+                preview = last_msg[:50] + "…" if len(last_msg) > 50 else last_msg
+            sessions.append({
+                "session_id": session_id,
+                "preview": preview,
+                "summary": summary,
+                "turn_count": turn_count,
+                "updated_at": updated_at,
+            })
+        return sessions
+
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
