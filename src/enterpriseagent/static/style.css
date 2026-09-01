@@ -186,7 +186,20 @@ body {
   flex: 1;
 }
 
-.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  min-width: 0; 
+  cursor: pointer;
+  transition: opacity 0.2s;
+  border-radius: 8px;
+  padding: 8px;
+  margin: -8px;
+}
+.brand:hover { 
+  opacity: 0.7;
+}
 .logo {
   font-size: 28px;
   color: var(--accent);

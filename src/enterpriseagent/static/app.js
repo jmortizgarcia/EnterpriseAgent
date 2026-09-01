@@ -529,6 +529,11 @@
     sidebarEl.classList.toggle("open");
   });
 
+  // Click en brand para ir al inicio
+  document.getElementById("brandHome").addEventListener("click", () => {
+    newChat();
+  });
+
   // Cerrar sidebar al clickear en un item (en mobile)
   sessionListEl.addEventListener("click", () => {
     if (window.innerWidth <= 600) {
