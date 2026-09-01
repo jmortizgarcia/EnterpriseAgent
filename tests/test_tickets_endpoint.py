@@ -1,126 +1,84 @@
-"""Tests for ticket management endpoints and persistence"""
+"""Tests for ticket management endpoints with SQLite persistence"""
+import sys
 import pytest
 from fastapi.testclient import TestClient
 
-from enterpriseagent.main import app, _ticket_manager
+from enterpriseagent.main import app
+from enterpriseagent.storage.ticket_repository import TicketRepository
 
 
 @pytest.fixture
-def client():
+def test_repository():
+    """Crea un repositorio temporal en memoria para tests"""
+    repo = TicketRepository(db_path=":memory:")
+    yield repo
+    repo.close()
+
+
+@pytest.fixture
+def client_with_repo(test_repository, monkeypatch):
+    """Cliente TestClient que usa el repositorio en memoria"""
+    # Reemplazar el repositorio global con el de prueba
+    main_module = sys.modules["enterpriseagent.main"]
+    monkeypatch.setattr(main_module, "_ticket_repository", test_repository)
+    
     return TestClient(app)
 
 
-@pytest.fixture
-def reset_tickets():
-    """Reset tickets before and after each test"""
-    # Clear before
-    _ticket_manager._tickets.clear()
-    yield
-    # Clear after
-    _ticket_manager._tickets.clear()
-
-
 class TestTicketsEndpoint:
-    def test_list_tickets_empty(self, client, reset_tickets):
+    def test_list_tickets_empty(self, client_with_repo, test_repository):
         """GET /tickets should return empty list initially"""
-        resp = client.get("/tickets")
+        resp = client_with_repo.get("/tickets")
         assert resp.status_code == 200
         data = resp.json()
         assert "tickets" in data
         assert isinstance(data["tickets"], list)
+        assert len(data["tickets"]) == 0
 
-    def test_get_ticket_not_found(self, client, reset_tickets):
+    def test_get_ticket_not_found(self, client_with_repo, test_repository):
         """GET /tickets/999 should return 404"""
-        resp = client.get("/tickets/999")
+        resp = client_with_repo.get("/tickets/999")
         assert resp.status_code == 404
         data = resp.json()
         assert "error" in data
 
-    def test_ticket_creation_via_agent_appears_in_list(self, client, reset_tickets):
-        """Tickets created via agent should be accessible via /tickets endpoint"""
-        # First, list tickets (should be empty or have previous ones)
-        resp = client.get("/tickets")
-        initial_count = len(resp.json()["tickets"])
-
-        # Create ticket via agent chat
-        chat_resp = client.post(
-            "/agent/chat",
-            json={
-                "message": "Crea un ticket de alta prioridad porque la CPU está al 95%",
-                "provider": "ollama",
-            },
-        )
-        assert chat_resp.status_code == 200
-
-        # List tickets again (should have new ticket)
-        resp = client.get("/tickets")
-        assert resp.status_code == 200
-        tickets = resp.json()["tickets"]
-        # We should have more tickets than before (or at least some tickets)
-        assert len(tickets) >= initial_count
-
-    def test_get_specific_ticket(self, client, reset_tickets):
+    def test_get_specific_ticket(self, client_with_repo, test_repository):
         """GET /tickets/1 should return ticket details"""
-        # First, create a ticket via the agent
-        chat_resp = client.post(
-            "/agent/chat",
+        # Create a ticket via POST
+        create_resp = client_with_repo.post(
+            "/tickets",
             json={
-                "message": "Crea un ticket con título 'Test Ticket' y descripción 'Testing'",
-                "provider": "ollama",
-            },
+                "title": "Test Ticket",
+                "description": "Testing",
+                "priority": "medium",
+            }
         )
-        assert chat_resp.status_code == 200
+        assert create_resp.status_code == 200
+        ticket_id = create_resp.json()["ticket"]["id"]
 
-        # Get the list to find a ticket ID
-        resp = client.get("/tickets")
-        tickets = resp.json()["tickets"]
+        # Get the specific ticket
+        resp = client_with_repo.get(f"/tickets/{ticket_id}")
+        assert resp.status_code == 200
+        ticket = resp.json()["ticket"]
+        assert ticket["id"] == ticket_id
+        assert ticket["title"] == "Test Ticket"
+        assert "description" in ticket
+        assert "priority" in ticket
 
-        if tickets:
-            # Get a specific ticket
-            ticket_id = tickets[0]["id"]
-            resp = client.get(f"/tickets/{ticket_id}")
-            assert resp.status_code == 200
-            ticket = resp.json()["ticket"]
-            assert ticket["id"] == ticket_id
-            assert "title" in ticket
-            assert "description" in ticket
-            assert "priority" in ticket
-
-    def test_tickets_persist_across_requests(self, client, reset_tickets):
-        """Tickets should not be lost between requests"""
-        # Create a ticket
-        chat_resp = client.post(
-            "/agent/chat",
-            json={
-                "message": "Crea un ticket llamado 'Persistencia Test'",
-                "provider": "ollama",
-            },
-        )
-        assert chat_resp.status_code == 200
-
-        # Get tickets immediately
-        resp1 = client.get("/tickets")
-        tickets1 = resp1.json()["tickets"]
-        count1 = len(tickets1)
-
-        # Do another request (unrelated chat)
-        client.post(
-            "/agent/chat",
-            json={"message": "¿Cuál es el precio?", "provider": "ollama"},
-        )
-
-        # Get tickets again
-        resp2 = client.get("/tickets")
-        tickets2 = resp2.json()["tickets"]
-        count2 = len(tickets2)
-
-        # Count should be the same (tickets persist)
-        assert count1 == count2, "Tickets were lost between requests!"
-
-    def test_ticket_schema(self, client, reset_tickets):
+    def test_ticket_schema(self, client_with_repo, test_repository):
         """Tickets should have correct schema"""
-        resp = client.get("/tickets")
-        tickets = resp.json()["tickets"]
+        # Create a ticket
+        resp = client_with_repo.post(
+            "/tickets",
+            json={
+                "title": "Schema Test",
+                "description": "Testing schema",
+                "priority": "high",
+            }
+        )
+        
+        tickets_resp = client_with_repo.get("/tickets")
+        tickets = tickets_resp.json()["tickets"]
 
         if tickets:
             ticket = tickets[0]
@@ -132,9 +90,9 @@ class TestTicketsEndpoint:
             assert "priority" in ticket
             assert ticket["priority"] in ["low", "medium", "high"]
 
-    def test_create_ticket_via_post(self, client, reset_tickets):
+    def test_create_ticket_via_post(self, client_with_repo, test_repository):
         """POST /tickets should create a new ticket"""
-        resp = client.post(
+        resp = client_with_repo.post(
             "/tickets",
             json={
                 "title": "Test Ticket",
@@ -145,15 +103,17 @@ class TestTicketsEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert "ticket" in data
+        assert "message" in data
         ticket = data["ticket"]
         assert ticket["title"] == "Test Ticket"
         assert ticket["description"] == "Test Description"
         assert ticket["priority"] == "high"
+        assert ticket["id"] == 1
 
-    def test_update_ticket_via_put(self, client, reset_tickets):
+    def test_update_ticket_via_put(self, client_with_repo, test_repository):
         """PUT /tickets/{id} should update an existing ticket"""
         # First create a ticket
-        create_resp = client.post(
+        create_resp = client_with_repo.post(
             "/tickets",
             json={
                 "title": "Original Title",
@@ -164,7 +124,7 @@ class TestTicketsEndpoint:
         ticket_id = create_resp.json()["ticket"]["id"]
 
         # Update it
-        update_resp = client.put(
+        update_resp = client_with_repo.put(
             f"/tickets/{ticket_id}",
             json={
                 "title": "Updated Title",
@@ -178,10 +138,10 @@ class TestTicketsEndpoint:
         assert updated["description"] == "Updated Description"
         assert updated["priority"] == "high"
 
-    def test_update_ticket_partial(self, client, reset_tickets):
+    def test_update_ticket_partial(self, client_with_repo, test_repository):
         """PUT /tickets/{id} should allow partial updates"""
         # Create a ticket
-        create_resp = client.post(
+        create_resp = client_with_repo.post(
             "/tickets",
             json={
                 "title": "Original",
@@ -192,7 +152,7 @@ class TestTicketsEndpoint:
         ticket_id = create_resp.json()["ticket"]["id"]
 
         # Update only the title
-        update_resp = client.put(
+        update_resp = client_with_repo.put(
             f"/tickets/{ticket_id}",
             json={"title": "New Title"}
         )
@@ -203,9 +163,9 @@ class TestTicketsEndpoint:
         assert updated["description"] == "Description"
         assert updated["priority"] == "medium"
 
-    def test_update_nonexistent_ticket(self, client, reset_tickets):
+    def test_update_nonexistent_ticket(self, client_with_repo, test_repository):
         """PUT /tickets/999 should return 404"""
-        resp = client.put(
+        resp = client_with_repo.put(
             "/tickets/999",
             json={"title": "Updated"}
         )
@@ -213,10 +173,10 @@ class TestTicketsEndpoint:
         data = resp.json()
         assert "error" in data
 
-    def test_delete_ticket(self, client, reset_tickets):
+    def test_delete_ticket(self, client_with_repo, test_repository):
         """DELETE /tickets/{id} should delete a ticket"""
         # Create a ticket
-        create_resp = client.post(
+        create_resp = client_with_repo.post(
             "/tickets",
             json={
                 "title": "To Delete",
@@ -227,27 +187,27 @@ class TestTicketsEndpoint:
         ticket_id = create_resp.json()["ticket"]["id"]
 
         # Delete it
-        delete_resp = client.delete(f"/tickets/{ticket_id}")
+        delete_resp = client_with_repo.delete(f"/tickets/{ticket_id}")
         assert delete_resp.status_code == 200
         data = delete_resp.json()
         assert "message" in data
         assert str(ticket_id) in data["message"]
 
         # Verify it's gone
-        get_resp = client.get(f"/tickets/{ticket_id}")
+        get_resp = client_with_repo.get(f"/tickets/{ticket_id}")
         assert get_resp.status_code == 404
 
-    def test_delete_nonexistent_ticket(self, client, reset_tickets):
+    def test_delete_nonexistent_ticket(self, client_with_repo, test_repository):
         """DELETE /tickets/999 should return 404"""
-        resp = client.delete("/tickets/999")
+        resp = client_with_repo.delete("/tickets/999")
         assert resp.status_code == 404
         data = resp.json()
         assert "error" in data
 
-    def test_create_ticket_via_post_missing_fields(self, client, reset_tickets):
+    def test_create_ticket_via_post_missing_fields(self, client_with_repo, test_repository):
         """POST /tickets should validate required fields"""
         # Missing title
-        resp = client.post(
+        resp = client_with_repo.post(
             "/tickets",
             json={
                 "description": "Description",
@@ -256,11 +216,11 @@ class TestTicketsEndpoint:
         )
         assert resp.status_code == 422  # Unprocessable Entity
 
-    def test_ticket_counter_increments(self, client, reset_tickets):
-        """Each created ticket should have a unique ID"""
+    def test_ticket_counter_increments(self, client_with_repo, test_repository):
+        """Each created ticket should have a unique autoincrement ID"""
         ids = []
         for i in range(3):
-            resp = client.post(
+            resp = client_with_repo.post(
                 "/tickets",
                 json={
                     "title": f"Ticket {i}",
@@ -272,5 +232,56 @@ class TestTicketsEndpoint:
 
         # All IDs should be unique
         assert len(set(ids)) == 3
-        # IDs should be sequential
-        assert ids == sorted(ids)
+        # IDs should be sequential (1, 2, 3)
+        assert ids == [1, 2, 3]
+
+    def test_ticket_persistence_in_db(self, test_repository):
+        """Tickets should persist in SQLite database"""
+        # Create a ticket
+        ticket1 = test_repository.create(
+            title="Persistent Ticket",
+            description="This should persist",
+            priority="high"
+        )
+        ticket_id = ticket1["id"]
+
+        # Retrieve it
+        ticket2 = test_repository.get(ticket_id)
+        assert ticket2 is not None
+        assert ticket2["title"] == "Persistent Ticket"
+        assert ticket2["description"] == "This should persist"
+        assert ticket2["priority"] == "high"
+
+    def test_list_tickets_after_create(self, client_with_repo, test_repository):
+        """GET /tickets should include created tickets"""
+        # Create 3 tickets
+        for i in range(3):
+            client_with_repo.post(
+                "/tickets",
+                json={
+                    "title": f"Ticket {i}",
+                    "description": f"Description {i}",
+                    "priority": "medium",
+                }
+            )
+
+        # List all
+        resp = client_with_repo.get("/tickets")
+        assert resp.status_code == 200
+        tickets = resp.json()["tickets"]
+        assert len(tickets) == 3
+
+    def test_default_values_for_empty_fields(self, client_with_repo, test_repository):
+        """Empty title/description should use defaults"""
+        resp = client_with_repo.post(
+            "/tickets",
+            json={
+                "title": "",
+                "description": "",
+                "priority": "medium",
+            }
+        )
+        assert resp.status_code == 200
+        ticket = resp.json()["ticket"]
+        assert ticket["title"] == "Ticket sin título"
+        assert ticket["description"] == "Sin descripción"

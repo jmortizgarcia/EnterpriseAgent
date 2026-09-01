@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from enterpriseagent.agent.loop import run_agent, run_agent_stream
 from enterpriseagent.agent.state import AgentState
-from enterpriseagent.agent.tools import CreateTicket, QueryMetric, SearchDocs
+from enterpriseagent.agent.tools import CreateTicket, EditTicket, ListTickets, DeleteTicket, QueryMetric, SearchDocs
 from enterpriseagent.config import settings
 from enterpriseagent.guardrails.input import validate_input
 from enterpriseagent.guardrails.pii import detect_pii, redact_pii
@@ -25,6 +25,7 @@ from enterpriseagent.providers import (
     OpenAIProvider,
 )
 from enterpriseagent.rag.vector_store import get_vector_store
+from enterpriseagent.storage.ticket_repository import TicketRepository
 
 app = FastAPI(title="Enterprise Agent", version="0.1.0")
 
@@ -33,7 +34,8 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 _memory = ConversationMemory()
 _stats: dict[str, list[dict]] = defaultdict(list)
-_ticket_manager = CreateTicket()  # Instancia global singleton para persistencia
+_ticket_repository = TicketRepository()  # Repositorio singleton para persistencia de tickets
+
 
 
 @app.middleware("http")
@@ -95,8 +97,15 @@ def get_provider(name: str | None = None) -> LLMProvider:
 
 def get_tools() -> list:
     store = get_vector_store()
-    # Reutilizar instancia global de CreateTicket para persistencia entre requests
-    return [SearchDocs(store=store), _ticket_manager, QueryMetric()]
+    # Usar el repositorio singleton compartido por todos los tools
+    return [
+        SearchDocs(store=store),
+        CreateTicket(_ticket_repository),
+        EditTicket(_ticket_repository),
+        ListTickets(_ticket_repository),
+        DeleteTicket(_ticket_repository),
+        QueryMetric()
+    ]
 
 
 @app.get("/health")
@@ -234,13 +243,13 @@ async def get_session_stats(session_id: str):
 @app.get("/tickets")
 async def list_tickets():
     """Lista todos los tickets creados"""
-    return {"tickets": _ticket_manager.get_all_tickets()}
+    return {"tickets": _ticket_repository.list_all()}
 
 
 @app.get("/tickets/{ticket_id}")
 async def get_ticket(ticket_id: int):
     """Obtiene un ticket específico por ID"""
-    ticket = _ticket_manager.get_ticket(ticket_id)
+    ticket = _ticket_repository.get(ticket_id)
     if not ticket:
         return JSONResponse(
             status_code=404,
@@ -252,23 +261,19 @@ async def get_ticket(ticket_id: int):
 @app.post("/tickets")
 async def create_ticket(request: CreateTicketRequest):
     """Crea un nuevo ticket"""
-    import asyncio
-    result = await _ticket_manager.execute(
+    ticket = _ticket_repository.create(
         title=request.title,
         description=request.description,
         priority=request.priority
     )
-    # Obtener el ticket recién creado
-    tickets = _ticket_manager.get_all_tickets()
-    if tickets:
-        return {"ticket": tickets[-1], "message": result}
-    return JSONResponse(status_code=500, content={"error": "Failed to create ticket"})
+    message = f"Ticket #{ticket['id']} created: {ticket['title']}"
+    return {"ticket": ticket, "message": message}
 
 
 @app.put("/tickets/{ticket_id}")
 async def update_ticket(ticket_id: int, request: UpdateTicketRequest):
     """Actualiza un ticket existente"""
-    success = _ticket_manager.edit_ticket(
+    success = _ticket_repository.update(
         ticket_id=ticket_id,
         title=request.title,
         description=request.description,
@@ -279,17 +284,18 @@ async def update_ticket(ticket_id: int, request: UpdateTicketRequest):
             status_code=404,
             content={"error": "Ticket not found", "ticket_id": ticket_id}
         )
-    ticket = _ticket_manager.get_ticket(ticket_id)
+    ticket = _ticket_repository.get(ticket_id)
     return {"ticket": ticket, "message": f"Ticket #{ticket_id} updated"}
 
 
 @app.delete("/tickets/{ticket_id}")
 async def delete_ticket(ticket_id: int):
     """Elimina un ticket"""
-    success = _ticket_manager.delete_ticket(ticket_id)
+    success = _ticket_repository.delete(ticket_id)
     if not success:
         return JSONResponse(
             status_code=404,
             content={"error": "Ticket not found", "ticket_id": ticket_id}
         )
     return {"message": f"Ticket #{ticket_id} deleted", "ticket_id": ticket_id}
+

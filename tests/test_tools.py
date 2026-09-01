@@ -46,7 +46,10 @@ class TestSearchDocs:
 class TestCreateTicket:
     @pytest.fixture
     def tool(self):
-        return CreateTicket()
+        """Fixture que crea un CreateTicket con repositorio en memoria"""
+        from enterpriseagent.storage.ticket_repository import TicketRepository
+        repo = TicketRepository(db_path=":memory:")
+        return CreateTicket(repository=repo)
 
     def test_name(self, tool):
         assert tool.name == "create_ticket"
@@ -76,12 +79,14 @@ class TestCreateTicket:
     @pytest.mark.asyncio
     async def test_priority_default(self, tool):
         await tool.execute(title="Test", description="test")
-        assert tool._tickets[1]["priority"] == "medium"
+        ticket = tool.repository.get(1)
+        assert ticket["priority"] == "medium"
 
     @pytest.mark.asyncio
     async def test_priority_high(self, tool):
         await tool.execute(title="Urgent", description="Critical", priority="high")
-        assert tool._tickets[1]["priority"] == "high"
+        ticket = tool.repository.get(1)
+        assert ticket["priority"] == "high"
 
 
 class TestQueryMetric:

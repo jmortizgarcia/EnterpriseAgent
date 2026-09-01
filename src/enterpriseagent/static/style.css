@@ -881,3 +881,46 @@ body {
   color: var(--text);
   word-break: break-word;
 }
+
+/* ========== FILTROS DE TICKETS ========== */
+
+#chatSidebar {
+  display: block;
+}
+
+#ticketsSidebar {
+  display: block;
+}
+
+.ticket-filters {
+  padding: 8px 0;
+}
+
+.filter-section {
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.filter-section:hover {
+  background: var(--border);
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  user-select: none;
+  margin: 0;
+}
+
+.filter-checkbox {
+  cursor: pointer;
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}

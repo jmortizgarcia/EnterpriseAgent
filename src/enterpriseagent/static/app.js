@@ -412,6 +412,8 @@
   /* ======== Gestión de Tickets ======== */
   function switchView(view) {
     currentView = view;
+    const chatSidebar = document.getElementById("chatSidebar");
+    const ticketsSidebar = document.getElementById("ticketsSidebar");
     
     if (view === "chat") {
       chatViewEl.classList.add("active");
@@ -419,13 +421,17 @@
       chatTabEl.classList.add("active");
       ticketsTabEl.classList.remove("active");
       sidebarEl.classList.remove("hidden"); // Mostrar sidebar en chat
+      if (chatSidebar) chatSidebar.style.display = "block";
+      if (ticketsSidebar) ticketsSidebar.style.display = "none";
       newChat(); // Resetear historial al ir a chat
     } else {
       chatViewEl.classList.remove("active");
       ticketViewEl.classList.add("active");
       chatTabEl.classList.remove("active");
       ticketsTabEl.classList.add("active");
-      sidebarEl.classList.add("hidden"); // Ocultar sidebar en tickets
+      sidebarEl.classList.remove("hidden"); // Mostrar sidebar
+      if (chatSidebar) chatSidebar.style.display = "none";
+      if (ticketsSidebar) ticketsSidebar.style.display = "block";
       loadTickets();
     }
   }
@@ -464,6 +470,133 @@
       `;
       card.addEventListener("click", () => showTicketDetails(ticket));
       ticketListEl.appendChild(card);
+    });
+  }
+
+  // ========== FILTRADO DE TICKETS ==========
+  
+  let allTickets = []; // Almacenar todos los tickets
+
+  // Guardar estado de filtros en localStorage
+  function saveFilterState() {
+    const filterAll = document.getElementById("filterAll")?.checked || false;
+    const filterLow = document.getElementById("filterLow")?.checked || false;
+    const filterMedium = document.getElementById("filterMedium")?.checked || false;
+    const filterHigh = document.getElementById("filterHigh")?.checked || false;
+
+    localStorage.setItem("ticketFilters", JSON.stringify({
+      all: filterAll,
+      low: filterLow,
+      medium: filterMedium,
+      high: filterHigh
+    }));
+  }
+
+  // Cargar estado de filtros del localStorage
+  function loadFilterState() {
+    try {
+      const saved = localStorage.getItem("ticketFilters");
+      if (saved) {
+        const filters = JSON.parse(saved);
+        const filterAll = document.getElementById("filterAll");
+        const filterLow = document.getElementById("filterLow");
+        const filterMedium = document.getElementById("filterMedium");
+        const filterHigh = document.getElementById("filterHigh");
+
+        if (filterAll) filterAll.checked = filters.all;
+        if (filterLow) filterLow.checked = filters.low;
+        if (filterMedium) filterMedium.checked = filters.medium;
+        if (filterHigh) filterHigh.checked = filters.high;
+      }
+    } catch (e) {
+      console.error("Error loading filter state:", e);
+    }
+  }
+
+  function getActiveFilters() {
+    const filterAll = document.getElementById("filterAll")?.checked || false;
+    const filterLow = document.getElementById("filterLow")?.checked || false;
+    const filterMedium = document.getElementById("filterMedium")?.checked || false;
+    const filterHigh = document.getElementById("filterHigh")?.checked || false;
+
+    // Si "Todos" está seleccionado, mostrar todas las prioridades
+    if (filterAll) {
+      return { low: true, medium: true, high: true };
+    }
+
+    // Si ninguno está seleccionado, mostrar todos (por defecto)
+    if (!filterLow && !filterMedium && !filterHigh) {
+      return { low: true, medium: true, high: true };
+    }
+
+    return {
+      low: filterLow,
+      medium: filterMedium,
+      high: filterHigh
+    };
+  }
+
+  function applyFilters() {
+    const filters = getActiveFilters();
+    const filtered = allTickets.filter(ticket => {
+      return filters[ticket.priority] === true;
+    });
+    renderTickets(filtered);
+    updateFilterCounts();
+    saveFilterState(); // Guardar estado cuando cambian los filtros
+  }
+
+  function updateFilterCounts() {
+    const low = allTickets.filter(t => t.priority === "low").length;
+    const medium = allTickets.filter(t => t.priority === "medium").length;
+    const high = allTickets.filter(t => t.priority === "high").length;
+    const total = allTickets.length;
+
+    // Actualizar contadores
+    const filterAll = document.getElementById("filterAll");
+    const filterLow = document.getElementById("filterLow");
+    const filterMedium = document.getElementById("filterMedium");
+    const filterHigh = document.getElementById("filterHigh");
+
+    if (filterAll?.parentElement) {
+      filterAll.parentElement.textContent = "";
+      filterAll.parentElement.appendChild(filterAll);
+      filterAll.parentElement.appendChild(document.createTextNode(`Todos (${total})`));
+    }
+
+    if (filterLow?.parentElement) {
+      filterLow.parentElement.textContent = "";
+      filterLow.parentElement.appendChild(filterLow);
+      filterLow.parentElement.appendChild(document.createTextNode(`🟢 Baja (${low})`));
+    }
+
+    if (filterMedium?.parentElement) {
+      filterMedium.parentElement.textContent = "";
+      filterMedium.parentElement.appendChild(filterMedium);
+      filterMedium.parentElement.appendChild(document.createTextNode(`🟠 Media (${medium})`));
+    }
+
+    if (filterHigh?.parentElement) {
+      filterHigh.parentElement.textContent = "";
+      filterHigh.parentElement.appendChild(filterHigh);
+      filterHigh.parentElement.appendChild(document.createTextNode(`🔴 Alta (${high})`));
+    }
+  }
+
+  // Event listeners para filtros
+  document.addEventListener("DOMContentLoaded", () => {
+    loadFilterState(); // Cargar filtros guardados al iniciar
+    const filterCheckboxes = document.querySelectorAll(".filter-checkbox");
+    filterCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener("change", applyFilters);
+    });
+  });
+
+  // Alternativa si DOMContentLoaded ya se ejecutó
+  const filterCheckboxes = document.querySelectorAll(".filter-checkbox");
+  if (filterCheckboxes.length > 0) {
+    filterCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener("change", applyFilters);
     });
   }
 

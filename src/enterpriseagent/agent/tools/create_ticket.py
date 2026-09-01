@@ -1,10 +1,13 @@
 from enterpriseagent.agent.tools.base import Tool
+from enterpriseagent.storage.ticket_repository import TicketRepository
 
 
 class CreateTicket(Tool):
-    def __init__(self) -> None:
-        self._tickets: dict[int, dict] = {}
-        self._counter: int = 0
+    def __init__(self, repository: TicketRepository = None) -> None:
+        if repository is None:
+            self.repository = TicketRepository()
+        else:
+            self.repository = repository
 
     @property
     def name(self) -> str:
@@ -31,41 +34,13 @@ class CreateTicket(Tool):
         }
 
     async def execute(self, title: str = "", description: str = "", priority: str = "medium") -> str:
-        self._counter += 1
-        self._tickets[self._counter] = {
-            "title": title,
-            "description": description,
-            "priority": priority,
-        }
-        return f"Ticket #{self._counter} created: {title}"
+        ticket = self.repository.create(title=title, description=description, priority=priority)
+        return f"Ticket #{ticket['id']} created: {ticket['title']}"
 
     def get_all_tickets(self) -> list[dict]:
         """Retorna todos los tickets con sus IDs"""
-        return [{"id": tid, **data} for tid, data in self._tickets.items()]
+        return self.repository.list_all()
 
     def get_ticket(self, ticket_id: int) -> dict | None:
         """Obtiene un ticket por ID"""
-        if ticket_id in self._tickets:
-            return {"id": ticket_id, **self._tickets[ticket_id]}
-        return None
-
-    def edit_ticket(self, ticket_id: int, title: str = None, description: str = None, priority: str = None) -> bool:
-        """Edita un ticket existente. Retorna True si fue exitoso, False si no existe."""
-        if ticket_id not in self._tickets:
-            return False
-        
-        if title is not None:
-            self._tickets[ticket_id]["title"] = title
-        if description is not None:
-            self._tickets[ticket_id]["description"] = description
-        if priority is not None and priority in ["low", "medium", "high"]:
-            self._tickets[ticket_id]["priority"] = priority
-        
-        return True
-
-    def delete_ticket(self, ticket_id: int) -> bool:
-        """Elimina un ticket. Retorna True si fue exitoso, False si no existe."""
-        if ticket_id not in self._tickets:
-            return False
-        del self._tickets[ticket_id]
-        return True
+        return self.repository.get(ticket_id)
