@@ -63,11 +63,15 @@ def build_agent_graph(
     async def call_llm(state: AgentState) -> dict:
         active = provider
         last_error: Exception | None = None
-        schema = _get_active_schema(state.context)
+        
+        # After tool execution, don't pass tools schema - we want text completion only
+        last_msg = state.messages[-1] if state.messages else {}
+        is_tool_result = "Tool" in str(last_msg.get("content", "")) and last_msg.get("role") == "user"
+        schema = [] if is_tool_result else _get_active_schema(state.context)
 
         for attempt in range(3):
             try:
-                response = await active.generate(state.messages, schema)
+                response = await active.generate(state.messages, schema if schema else None)
                 state.context["last_response"] = response
                 return {"context": state.context}
             except Exception as e:
@@ -78,7 +82,7 @@ def build_agent_graph(
 
         if fallback_provider and active is not fallback_provider:
             try:
-                response = await fallback_provider.generate(state.messages, schema)
+                response = await fallback_provider.generate(state.messages, schema if schema else None)
                 state.context["last_response"] = response
                 return {"context": state.context}
             except Exception as e:
@@ -107,7 +111,7 @@ def build_agent_graph(
                 except Exception as e:
                     result = f"Error: tool {tc.name} failed: {e}"
 
-            role = "user" if provider.__class__.__name__ == "OpenAIProvider" else "assistant"
+            role = "user"  # Tool results should come from user/system, not assistant
             state.messages.append({"role": role, "content": f"Tool {tc.name} result: {result}"})
 
         state.context.pop("last_response", None)

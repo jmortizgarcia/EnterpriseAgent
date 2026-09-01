@@ -248,7 +248,10 @@
     }
 
     messagesEl.appendChild(wrap);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    // Asegurar que el scroll sea después de que el DOM se renderice
+    requestAnimationFrame(() => {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    });
     return wrap;
   }
 

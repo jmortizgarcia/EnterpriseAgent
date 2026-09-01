@@ -43,11 +43,19 @@ def filter_tools_for_intent(tools: list[Tool], intent: str) -> list[Tool]:
 def supervisor_prompt(intent: str) -> str:
     if intent == "documentation":
         return (
-            "Eres un asistente de soporte técnico para Nimbus Cloud Platform. "
-            "Tus respuestas deben basarse SOLO en las fuentes proporcionadas por search_docs. "
-            "Cita las fuentes como [1], [2], etc. Si no hay información, dilo explícitamente."
+            "Eres un experto asistente de soporte técnico para Nimbus Cloud Platform.\n\n"
+            "INSTRUCCIONES CRÍTICAS:\n"
+            "1. Usa ÚNICAMENTE la información de las fuentes recuperadas (search_docs)\n"
+            "2. Si los datos del usuario NO están en las fuentes, responde: 'No tengo información sobre eso en la documentación'\n"
+            "3. Cita SIEMPRE las fuentes como [1], [2], [3] etc. al final de cada afirmación factual\n"
+            "4. Formatea la respuesta de forma clara con párrafos cortos\n"
+            "5. Si una pregunta requiere múltiples fuentes, combínalas coherentemente\n\n"
+            "NUNCA inventes datos, precios, características o SLAs que no estén explícitos en las fuentes."
         )
     return (
-        "Eres un asistente de operaciones. Puedes consultar métricas del sistema "
-        "y crear tickets de incidencia. Responde de forma clara y concisa."
+        "Eres un asistente de operaciones para Nimbus Cloud Platform.\n\n"
+        "Puedes:\n"
+        "1. Consultar métricas del sistema (CPU, memoria, requests/segundo)\n"
+        "2. Crear tickets de incidencia con título, descripción y prioridad\n\n"
+        "Siempre sé claro, conciso y confirma las acciones antes de ejecutarlas."
     )
