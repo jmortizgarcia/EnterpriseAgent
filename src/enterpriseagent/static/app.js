@@ -15,7 +15,17 @@
   const toggleSidebarBtn = document.getElementById("toggleSidebar");
   const toastEl = document.getElementById("toast");
 
+  // Elementos para tickets
+  const chatViewEl = document.getElementById("chatView");
+  const ticketViewEl = document.getElementById("ticketView");
+  const chatTabEl = document.getElementById("chatTab");
+  const ticketsTabEl = document.getElementById("ticketsTab");
+  const ticketListEl = document.getElementById("ticketList");
+  const emptyTicketsEl = document.getElementById("emptyTickets");
+  const refreshTicketsBtn = document.getElementById("refreshTickets");
+
   const SUGGESTIONS = [
+    "Qué es Nimbus Cloud?",
     "¿Cuál es el SLA del plan Enterprise?",
     "¿Cuánto cuesta el plan Pro?",
     "¿Cómo obtengo una API key?",
@@ -27,6 +37,7 @@
   let busy = false;
   let currentMessages = [];
   let currentStats = { input_tokens: 0, output_tokens: 0, total_cost: 0 };
+  let currentView = "chat"; // "chat" | "tickets"
 
   function esc(s) {
     const d = document.createElement("div");
@@ -396,6 +407,60 @@
     }
   }
 
+  /* ======== Gestión de Tickets ======== */
+  function switchView(view) {
+    currentView = view;
+    
+    if (view === "chat") {
+      chatViewEl.classList.add("active");
+      ticketViewEl.classList.remove("active");
+      chatTabEl.classList.add("active");
+      ticketsTabEl.classList.remove("active");
+    } else {
+      chatViewEl.classList.remove("active");
+      ticketViewEl.classList.add("active");
+      chatTabEl.classList.remove("active");
+      ticketsTabEl.classList.add("active");
+      loadTickets();
+    }
+  }
+
+  async function loadTickets() {
+    try {
+      const resp = await fetch("/tickets");
+      const data = await resp.json();
+      renderTickets(data.tickets || []);
+    } catch (err) {
+      console.error("Error loading tickets:", err);
+      showToast("Error al cargar tickets");
+    }
+  }
+
+  function renderTickets(tickets) {
+    ticketListEl.innerHTML = "";
+    
+    if (tickets.length === 0) {
+      emptyTicketsEl.style.display = "flex";
+      return;
+    }
+    
+    emptyTicketsEl.style.display = "none";
+    
+    tickets.forEach(ticket => {
+      const card = document.createElement("div");
+      card.className = "ticket-card";
+      card.innerHTML = `
+        <div class="ticket-card-header">
+          <span class="ticket-id">Ticket #${ticket.id}</span>
+          <span class="ticket-priority ${ticket.priority}">${ticket.priority}</span>
+        </div>
+        <h3 class="ticket-title">${esc(ticket.title)}</h3>
+        <p class="ticket-description">${esc(ticket.description)}</p>
+      `;
+      ticketListEl.appendChild(card);
+    });
+  }
+
   function exportMarkdown() {
     const sessionId = sessionIdEl.value || "unnamed";
     let md = `# Conversación - ${sessionId}\n`;
@@ -533,6 +598,11 @@
   document.getElementById("brandHome").addEventListener("click", () => {
     newChat();
   });
+
+  // Cambiar entre vistas
+  chatTabEl.addEventListener("click", () => switchView("chat"));
+  ticketsTabEl.addEventListener("click", () => switchView("tickets"));
+  refreshTicketsBtn.addEventListener("click", loadTickets);
 
   // Cerrar sidebar al clickear en un item (en mobile)
   sessionListEl.addEventListener("click", () => {

@@ -20,13 +20,17 @@
     <header class="topbar">
       <div class="topbar-left">
         <button id="toggleSidebar" class="icon-btn sidebar-toggle" title="Mostrar/ocultar historial">☰</button>
-       <div class="brand" id="brandHome" title="Ir al inicio">
+        <div class="brand" id="brandHome" title="Ir al inicio">
            <span class="logo">◆</span>
            <div>
              <h1>Enterprise Agent</h1>
              <p>Nimbus Cloud Platform · Asistente con RAG, tools y memoria</p>
            </div>
          </div>
+      </div>
+      <div class="view-tabs">
+        <button id="chatTab" class="tab active">💬 Chat</button>
+        <button id="ticketsTab" class="tab">🎫 Tickets</button>
       </div>
       <div class="controls">
         <label for="provider">Proveedor</label>
@@ -41,41 +45,59 @@
     </header>
 
     <main class="stage">
-      <div class="chat-card">
-        <!-- Stats panel -->
-        <div class="stats-panel" id="statsPanel">
-          <div class="stat">
-            <span class="label">Tokens</span>
-            <span class="value" id="currentTokens">0</span>
+      <!-- Vista de Chat -->
+      <div id="chatView" class="view active">
+        <div class="chat-card">
+          <!-- Stats panel -->
+          <div class="stats-panel" id="statsPanel">
+            <div class="stat">
+              <span class="label">Tokens</span>
+              <span class="value" id="currentTokens">0</span>
+            </div>
+            <div class="stat">
+              <span class="label">Coste</span>
+              <span class="value" id="totalCost">$0.00</span>
+            </div>
+            <div class="stat">
+              <span class="label">Latencia</span>
+              <span class="value" id="latency">0ms</span>
+            </div>
           </div>
-          <div class="stat">
-            <span class="label">Coste</span>
-            <span class="value" id="totalCost">$0.00</span>
+
+          <section id="messages" class="messages">
+            <div class="welcome">
+              <h2>¿En qué puedo ayudarte?</h2>
+              <p>Pregúntame sobre Nimbus Cloud Platform o pídeme que realice una acción.</p>
+              <div class="suggestions" id="suggestions"></div>
+            </div>
+          </section>
+
+          <footer class="composer">
+            <form id="chatForm" autocomplete="off">
+              <textarea id="input" rows="1" placeholder="Escribe un mensaje…" maxlength="4000"></textarea>
+              <div class="composer-buttons">
+                <button type="button" id="exportBtn" class="icon-btn" title="Exportar conversación">⬇️</button>
+                <button type="submit" id="sendBtn" aria-label="Enviar">➤</button>
+              </div>
+            </form>
+            <p class="hint">El agente se basa en la documentación de Nimbus y puede crear tickets o consultar métricas.</p>
+          </footer>
+        </div>
+      </div>
+
+      <!-- Vista de Tickets -->
+      <div id="ticketView" class="view">
+        <div class="ticket-container">
+          <div class="ticket-header">
+            <h2>🎫 Gestión de Tickets</h2>
+            <button id="refreshTickets" class="icon-btn" title="Actualizar tickets">🔄</button>
           </div>
-          <div class="stat">
-            <span class="label">Latencia</span>
-            <span class="value" id="latency">0ms</span>
+          <div id="ticketList" class="ticket-list"></div>
+          <div id="emptyTickets" class="empty-state">
+            <p>No hay tickets creados aún</p>
+            <p class="hint">Crea tickets desde el chat o espera que el agente los genere</p>
           </div>
         </div>
-
-        <section id="messages" class="messages">
-          <div class="welcome">
-            <h2>¿En qué puedo ayudarte?</h2>
-            <p>Pregúntame sobre Nimbus Cloud Platform o pídeme que realice una acción.</p>
-            <div class="suggestions" id="suggestions"></div>
-          </div>
-        </section>
-
-        <footer class="composer">
-          <form id="chatForm" autocomplete="off">
-            <textarea id="input" rows="1" placeholder="Escribe un mensaje…" maxlength="4000"></textarea>
-            <div class="composer-buttons">
-              <button type="button" id="exportBtn" class="icon-btn" title="Exportar conversación">⬇️</button>
-              <button type="submit" id="sendBtn" aria-label="Enviar">➤</button>
-            </div>
-          </form>
-          <p class="hint">El agente se basa en la documentación de Nimbus y puede crear tickets o consultar métricas.</p>
-        </footer>
       </div>
     </main>
   </div>

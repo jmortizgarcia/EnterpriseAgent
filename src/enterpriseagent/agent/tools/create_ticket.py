@@ -38,3 +38,13 @@ class CreateTicket(Tool):
             "priority": priority,
         }
         return f"Ticket #{self._counter} created: {title}"
+
+    def get_all_tickets(self) -> list[dict]:
+        """Retorna todos los tickets con sus IDs"""
+        return [{"id": tid, **data} for tid, data in self._tickets.items()]
+
+    def get_ticket(self, ticket_id: int) -> dict | None:
+        """Obtiene un ticket por ID"""
+        if ticket_id in self._tickets:
+            return {"id": ticket_id, **self._tickets[ticket_id]}
+        return None

@@ -33,6 +33,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 _memory = ConversationMemory()
 _stats: dict[str, list[dict]] = defaultdict(list)
+_ticket_manager = CreateTicket()  # Instancia global singleton para persistencia
 
 
 @app.middleware("http")
@@ -82,7 +83,8 @@ def get_provider(name: str | None = None) -> LLMProvider:
 
 def get_tools() -> list:
     store = get_vector_store()
-    return [SearchDocs(store=store), CreateTicket(), QueryMetric()]
+    # Reutilizar instancia global de CreateTicket para persistencia entre requests
+    return [SearchDocs(store=store), _ticket_manager, QueryMetric()]
 
 
 @app.get("/health")
@@ -215,3 +217,21 @@ async def get_session_stats(session_id: str):
         "avg_duration_ms": round(total_duration / len(entries), 2) if entries else 0.0,
         "tools_used": tools_used,
     }
+
+
+@app.get("/tickets")
+async def list_tickets():
+    """Lista todos los tickets creados"""
+    return {"tickets": _ticket_manager.get_all_tickets()}
+
+
+@app.get("/tickets/{ticket_id}")
+async def get_ticket(ticket_id: int):
+    """Obtiene un ticket específico por ID"""
+    ticket = _ticket_manager.get_ticket(ticket_id)
+    if not ticket:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Ticket not found", "ticket_id": ticket_id}
+        )
+    return {"ticket": ticket}
