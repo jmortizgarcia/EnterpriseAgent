@@ -25,7 +25,7 @@
   const refreshTicketsBtn = document.getElementById("refreshTickets");
 
   const SUGGESTIONS = [
-    "Qué es Nimbus Cloud?",
+    "¿Qué es Nimbus Cloud?",
     "¿Cuál es el SLA del plan Enterprise?",
     "¿Cuánto cuesta el plan Pro?",
     "¿Cómo obtengo una API key?",
