@@ -154,11 +154,33 @@
       item.appendChild(time);
       item.appendChild(deleteBtn);
 
-      item.addEventListener("click", () => {
+      item.addEventListener("click", async () => {
         sessionIdEl.value = session.id;
         messagesEl.innerHTML = `<div class="welcome"><h2>Sesión restaurada</h2><p>Cargando historial...</p></div>`;
         renderSessionList();
-        currentMessages = [];
+        
+        // Cargar el historial completo de la sesión
+        try {
+          const resp = await fetch(`/agent/history/${session.id}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            currentMessages = data.messages || [];
+            
+            // Limpiar pantalla y re-renderizar mensajes
+            messagesEl.innerHTML = "";
+            currentMessages.forEach(msg => {
+              const sources = msg.role === "assistant" ? parseSources(msg.content) : null;
+              const clean = msg.role === "assistant" ? stripSources(msg.content) : msg.content;
+              appendBubble(msg.role, clean, { sources });
+            });
+            
+            // Actualizar stats
+            await updateStats();
+          }
+        } catch (err) {
+          console.error("Error cargando historial:", err);
+          messagesEl.innerHTML = `<div class="welcome"><h2>Error</h2><p>No se pudo cargar el historial. Intenta de nuevo.</p></div>`;
+        }
       });
 
       sessionListEl.appendChild(item);
@@ -197,6 +219,15 @@
     });
   }
 
+  function formatMarkdown(text) {
+    // Convertir markdown básico a HTML
+    return text
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")           // **bold**
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")                       // *italic*
+      .replace(/`([^`]+)`/g, "<code>$1</code>")                   // `code`
+      .replace(/\n/g, "<br>");                                     // newlines
+  }
+
   function appendBubble(role, text, opts) {
     opts = opts || {};
     const wrap = document.createElement("div");
@@ -205,19 +236,73 @@
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
-    bubble.textContent = text || (opts.typing ? "Escribiendo" : "");
-    wrap.appendChild(bubble);
-
+    
+    // Crear un contenedor para el texto que preserve los [N]
+    const textContainer = document.createElement("div");
+    textContainer.style.whiteSpace = "pre-wrap";
+    textContainer.innerHTML = formatMarkdown(text || (opts.typing ? "Escribiendo" : ""));
+    bubble.appendChild(textContainer);
+    
+    // Agregar referencias DENTRO de la burbuja si existen
     if (opts.sources && opts.sources.length) {
       const src = document.createElement("div");
       src.className = "sources";
+      
+      // Deduplicar referencias por número
+      const sourceMap = {};
       opts.sources.forEach(s => {
-        const span = document.createElement("span");
-        span.textContent = s;
-        src.appendChild(span);
+        const match = s.match(/\[(\d+)\]/);
+        const num = match ? match[1] : "0";
+        if (!sourceMap[num]) {
+          sourceMap[num] = s;
+        }
       });
-      wrap.appendChild(src);
+      
+      const uniqueSources = Object.values(sourceMap);
+      
+      uniqueSources.forEach((s) => {
+        // Formato esperado: [N] filename > title: descripción
+        const match = s.match(/\[(\d+)\]\s+([^>]+)>\s*([^:]+):\s*(.+)/);
+        
+        const item = document.createElement("div");
+        item.className = "source-item";
+        
+        const badge = document.createElement("span");
+        badge.className = "source-badge";
+        badge.textContent = match ? match[1] : "?";
+        
+        const textDiv = document.createElement("div");
+        textDiv.className = "source-text";
+        
+        if (match) {
+          const file = document.createElement("strong");
+          file.textContent = `${match[2].trim()} - ${match[3].trim()}`;
+          file.style.display = "block";
+          
+          const desc = document.createElement("div");
+          desc.style.fontSize = "11px";
+          desc.style.color = "var(--muted)";
+          desc.style.marginTop = "4px";
+          desc.style.lineHeight = "1.3";
+          const descText = match[4].trim();
+          desc.textContent = descText.length > 100 ? descText.substring(0, 100) + "…" : descText;
+          
+          textDiv.appendChild(file);
+          textDiv.appendChild(desc);
+        } else {
+          // Fallback: mostrar la referencia tal cual
+          textDiv.textContent = s.substring(0, 100);
+        }
+        
+        item.appendChild(badge);
+        item.appendChild(textDiv);
+        src.appendChild(item);
+      });
+      
+      bubble.appendChild(src);
     }
+    
+    wrap.appendChild(bubble);
 
     // Botón copiar para mensajes del agente
     if (role === "agent" && text) {
@@ -261,16 +346,23 @@
 
   function parseSources(text) {
     const sources = [];
-    const re = /\[\d+\]\s+[^\n]+/g;
+    // Capturar referencias en formato: * [N] filename > title: descripción
+    // El patrón debe ser flexible y capturar incluso si hay espacios extras
+    const re = /^\*\s*\[(\d+)\]\s+(.+?)(?:\n|$)/gm;
     let m;
     while ((m = re.exec(text)) !== null) {
-      sources.push(m[0]);
+      const content = m[2].trim();
+      if (content && content.length > 0) {  // Solo agregar si hay contenido
+        sources.push(`[${m[1]}] ${content}`);
+      }
     }
     return sources.length ? sources : null;
   }
 
   function stripSources(text) {
-    return text.replace(/\[\d+\]\s+[^\n]+/g, "").trim();
+    // Remover SOLO las líneas que comienzan con "* [N]" (bloque de referencias)
+    // Mantener TODO lo demás, incluyendo [N] inline y la línea **Fuente:**
+    return text.replace(/^\*\s*\[\d+\]\s+[^\n]+/gm, "").trim();
   }
 
   function handleError(err, typingEl) {

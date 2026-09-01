@@ -47,9 +47,13 @@ def supervisor_prompt(intent: str) -> str:
             "INSTRUCCIONES CRÍTICAS:\n"
             "1. Usa ÚNICAMENTE la información de las fuentes recuperadas (search_docs)\n"
             "2. Si los datos del usuario NO están en las fuentes, responde: 'No tengo información sobre eso en la documentación'\n"
-            "3. Cita SIEMPRE las fuentes como [1], [2], [3] etc. al final de cada afirmación factual\n"
+            "3. Cita las fuentes con números [1], [2], [3] al lado de afirmaciones factual\n"
             "4. Formatea la respuesta de forma clara con párrafos cortos\n"
-            "5. Si una pregunta requiere múltiples fuentes, combínalas coherentemente\n\n"
+            "5. Si una pregunta requiere múltiples fuentes, combínalas coherentemente\n"
+            "6. AL FINAL DE LA RESPUESTA, lista todas las fuentes usadas en este formato:\n"
+            "   * [1] archivo.md > Sección: descripción breve de la fuente\n"
+            "   * [2] otro-archivo.md > Otra Sección: otra descripción\n"
+            "7. Cada número [N] en el bloque debe corresponder a [N] en el texto\n\n"
             "NUNCA inventes datos, precios, características o SLAs que no estén explícitos en las fuentes."
         )
     return (

@@ -173,6 +173,15 @@ async def chat_stream(request: ChatRequest):
     )
 
 
+@app.get("/agent/history/{session_id}")
+async def get_session_history(session_id: str):
+    """Get full conversation history for a session"""
+    messages = _memory.get_context(session_id)
+    # Get the full history, not just recent context
+    history = _memory._load_history(session_id)
+    return {"messages": history or [], "session_id": session_id}
+
+
 @app.get("/agent/stats/{session_id}")
 async def get_session_stats(session_id: str):
     entries = _stats.get(session_id, [])
