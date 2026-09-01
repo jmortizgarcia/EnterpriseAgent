@@ -48,3 +48,24 @@ class CreateTicket(Tool):
         if ticket_id in self._tickets:
             return {"id": ticket_id, **self._tickets[ticket_id]}
         return None
+
+    def edit_ticket(self, ticket_id: int, title: str = None, description: str = None, priority: str = None) -> bool:
+        """Edita un ticket existente. Retorna True si fue exitoso, False si no existe."""
+        if ticket_id not in self._tickets:
+            return False
+        
+        if title is not None:
+            self._tickets[ticket_id]["title"] = title
+        if description is not None:
+            self._tickets[ticket_id]["description"] = description
+        if priority is not None and priority in ["low", "medium", "high"]:
+            self._tickets[ticket_id]["priority"] = priority
+        
+        return True
+
+    def delete_ticket(self, ticket_id: int) -> bool:
+        """Elimina un ticket. Retorna True si fue exitoso, False si no existe."""
+        if ticket_id not in self._tickets:
+            return False
+        del self._tickets[ticket_id]
+        return True

@@ -5,6 +5,7 @@
   const form = document.getElementById("chatForm");
   const input = document.getElementById("input");
   const sendBtn = document.getElementById("sendBtn");
+  const cancelBtn = document.getElementById("cancelBtn");
   const providerEl = document.getElementById("provider");
   const sessionIdEl = document.getElementById("sessionId");
   const suggestionsEl = document.getElementById("suggestions");
@@ -38,6 +39,7 @@
   let currentMessages = [];
   let currentStats = { input_tokens: 0, output_tokens: 0, total_cost: 0 };
   let currentView = "chat"; // "chat" | "tickets"
+  let abortController = null; // Para cancelar requests en progreso
 
   function esc(s) {
     const d = document.createElement("div");
@@ -416,11 +418,14 @@
       ticketViewEl.classList.remove("active");
       chatTabEl.classList.add("active");
       ticketsTabEl.classList.remove("active");
+      sidebarEl.classList.remove("hidden"); // Mostrar sidebar en chat
+      newChat(); // Resetear historial al ir a chat
     } else {
       chatViewEl.classList.remove("active");
       ticketViewEl.classList.add("active");
       chatTabEl.classList.remove("active");
       ticketsTabEl.classList.add("active");
+      sidebarEl.classList.add("hidden"); // Ocultar sidebar en tickets
       loadTickets();
     }
   }
@@ -457,7 +462,187 @@
         <h3 class="ticket-title">${esc(ticket.title)}</h3>
         <p class="ticket-description">${esc(ticket.description)}</p>
       `;
+      card.addEventListener("click", () => showTicketDetails(ticket));
       ticketListEl.appendChild(card);
+    });
+  }
+
+  // ========== MODALES Y FORMULARIOS ==========
+
+  const ticketModal = document.getElementById("ticketModal");
+  const ticketDetailsModal = document.getElementById("ticketDetailsModal");
+  const ticketForm = document.getElementById("ticketForm");
+  const ticketTitle = document.getElementById("ticketTitle");
+  const ticketDescription = document.getElementById("ticketDescription");
+  const ticketPriority = document.getElementById("ticketPriority");
+  const newTicketBtn = document.getElementById("newTicketBtn");
+  const closeModal = document.getElementById("closeModal");
+  const cancelTicketBtn = document.getElementById("cancelTicketBtn");
+  const submitTicketBtn = document.getElementById("submitTicketBtn");
+  const deleteTicketBtn = document.getElementById("deleteTicketBtn");
+  const closeDetailsModalBtn = document.getElementById("closeDetailsModal");
+  const closeDetailsBtn = document.getElementById("closeDetailsBtn");
+  const editFromDetailsBtn = document.getElementById("editFromDetailsBtn");
+  const modalTitle = document.getElementById("modalTitle");
+
+  let currentEditingTicketId = null; // Para saber si estamos editando o creando
+
+  function openCreateModal() {
+    if (!ticketModal || !ticketForm) return;
+    currentEditingTicketId = null;
+    modalTitle.textContent = "Crear Ticket";
+    ticketForm.reset();
+    deleteTicketBtn.style.display = "none";
+    submitTicketBtn.textContent = "Crear";
+    ticketModal.classList.add("active");
+  }
+
+  function openEditModal(ticket) {
+    if (!ticketModal || !ticketForm) return;
+    currentEditingTicketId = ticket.id;
+    modalTitle.textContent = `Editar Ticket #${ticket.id}`;
+    ticketTitle.value = ticket.title;
+    ticketDescription.value = ticket.description;
+    ticketPriority.value = ticket.priority;
+    deleteTicketBtn.style.display = "block";
+    submitTicketBtn.textContent = "Guardar cambios";
+    ticketModal.classList.add("active");
+  }
+
+  function closeTicketModal() {
+    if (!ticketModal) return;
+    ticketModal.classList.remove("active");
+    currentEditingTicketId = null;
+  }
+
+  function showTicketDetails(ticket) {
+    if (!ticketDetailsModal) return;
+    const detailsEl = document.getElementById("ticketDetails");
+    
+    detailsEl.innerHTML = `
+      <div class="detail-row">
+        <div class="detail-label">ID</div>
+        <div class="detail-value">#${ticket.id}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Título</div>
+        <div class="detail-value">${esc(ticket.title)}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Descripción</div>
+        <div class="detail-value">${esc(ticket.description)}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Prioridad</div>
+        <div class="detail-value"><span class="ticket-priority ${ticket.priority}">${ticket.priority}</span></div>
+      </div>
+    `;
+    
+    document.getElementById("detailsTitle").textContent = `Ticket #${ticket.id}`;
+    
+    if (editFromDetailsBtn) {
+      editFromDetailsBtn.onclick = () => {
+        closeDetailsModalView();
+        openEditModal(ticket);
+      };
+    }
+    
+    ticketDetailsModal.classList.add("active");
+  }
+
+  function closeDetailsModalView() {
+    if (!ticketDetailsModal) return;
+    ticketDetailsModal.classList.remove("active");
+  }
+
+  async function submitTicketForm() {
+    if (!ticketTitle || !ticketDescription) return;
+
+    // Usar valores por defecto si están vacíos
+    const title = ticketTitle.value.trim() || "Ticket sin título";
+    const description = ticketDescription.value.trim() || "Sin descripción";
+
+    const payload = {
+      title: title,
+      description: description,
+      priority: ticketPriority.value
+    };
+
+    try {
+      let url = "/tickets";
+      let method = "POST";
+
+      if (currentEditingTicketId) {
+        url += `/${currentEditingTicketId}`;
+        method = "PUT";
+      }
+
+      const resp = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        showToast("Error al guardar ticket");
+        return;
+      }
+
+      closeTicketModal();
+      showToast(currentEditingTicketId ? "Ticket actualizado" : "Ticket creado");
+      loadTickets(); // Recargar lista
+    } catch (err) {
+      console.error("Error submitting ticket:", err);
+      showToast("Error al guardar ticket");
+    }
+  }
+
+  async function deleteCurrentTicket() {
+    if (!currentEditingTicketId) return;
+    
+    if (!confirm(`¿Eliminar ticket #${currentEditingTicketId}?`)) {
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/tickets/${currentEditingTicketId}`, {
+        method: "DELETE"
+      });
+
+      if (!resp.ok) {
+        showToast("Error al eliminar ticket");
+        return;
+      }
+
+      closeTicketModal();
+      showToast("Ticket eliminado");
+      loadTickets(); // Recargar lista
+    } catch (err) {
+      console.error("Error deleting ticket:", err);
+      showToast("Error al eliminar ticket");
+    }
+  }
+
+  // Event listeners para modales
+  if (newTicketBtn) newTicketBtn.addEventListener("click", openCreateModal);
+  if (closeModal) closeModal.addEventListener("click", closeTicketModal);
+  if (cancelTicketBtn) cancelTicketBtn.addEventListener("click", closeTicketModal);
+  if (ticketForm) ticketForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    submitTicketForm();
+  });
+  if (deleteTicketBtn) deleteTicketBtn.addEventListener("click", deleteCurrentTicket);
+  if (closeDetailsBtn) closeDetailsBtn.addEventListener("click", closeDetailsModalView);
+
+  // Cerrar modal al clickear fuera
+  if (ticketModal) {
+    ticketModal.addEventListener("click", (e) => {
+      if (e.target === ticketModal) closeTicketModal();
+    });
+  }
+  if (ticketDetailsModal) {
+    ticketDetailsModal.addEventListener("click", (e) => {
+      if (e.target === ticketDetailsModal) closeDetailsModalView();
     });
   }
 
@@ -494,6 +679,8 @@
     if (busy) return;
     busy = true;
     sendBtn.disabled = true;
+    cancelBtn.style.display = "inline-block"; // Mostrar botón cancelar
+    abortController = new AbortController(); // Crear nuevo controller para esta request
 
     appendBubble("user", message);
     currentMessages.push({ role: "user", content: message });
@@ -512,6 +699,7 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: abortController.signal, // Pasar el signal para cancelación
       });
       const endTime = performance.now();
 
@@ -523,6 +711,7 @@
         appendBubble("agent", (data && data.error) ? data.error + reason : "Mensaje bloqueado." + reason, {});
         busy = false;
         sendBtn.disabled = false;
+        cancelBtn.style.display = "none";
         return;
       }
 
@@ -546,10 +735,17 @@
       document.getElementById("latency").textContent = Math.round(endTime - startTime) + "ms";
 
     } catch (err) {
-      handleError(err, typingEl);
+      // Si es un error de AbortError, simplemente limpiar (no mostrar error)
+      if (err.name !== "AbortError") {
+        handleError(err, typingEl);
+      } else {
+        removeEl(typingEl);
+        showToast("Mensaje cancelado");
+      }
     } finally {
       busy = false;
       sendBtn.disabled = false;
+      cancelBtn.style.display = "none"; // Ocultar botón cancelar
       autoResize();
     }
   }
@@ -588,6 +784,12 @@
       return;
     }
     exportMarkdown();
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    if (abortController) {
+      abortController.abort(); // Cancelar la request en progreso
+    }
   });
 
   toggleSidebarBtn.addEventListener("click", () => {

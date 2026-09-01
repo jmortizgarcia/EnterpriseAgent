@@ -7,13 +7,49 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <!-- Sidebar con historial -->
+  <!-- Sidebar con historial / filtros -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <h3>Historial</h3>
-      <button id="newChatBtn" class="icon-btn" title="Nueva conversación">➕</button>
+    <!-- Sección de chat (sesiones) -->
+    <div id="chatSidebar">
+      <div class="sidebar-header">
+        <h3>Historial</h3>
+        <button id="newChatBtn" class="icon-btn" title="Nueva conversación">➕</button>
+      </div>
+      <div id="sessionList" class="session-list"></div>
     </div>
-    <div id="sessionList" class="session-list"></div>
+
+    <!-- Sección de tickets (filtros) -->
+    <div id="ticketsSidebar" style="display: none;">
+      <div class="sidebar-header">
+        <h3>🎫 Filtros</h3>
+      </div>
+      <div class="ticket-filters">
+        <div class="filter-section">
+          <label class="filter-label">
+            <input type="checkbox" id="filterAll" checked class="filter-checkbox">
+            Todos (0)
+          </label>
+        </div>
+        <div class="filter-section">
+          <label class="filter-label">
+            <input type="checkbox" id="filterLow" class="filter-checkbox">
+            🟢 Baja (0)
+          </label>
+        </div>
+        <div class="filter-section">
+          <label class="filter-label">
+            <input type="checkbox" id="filterMedium" checked class="filter-checkbox">
+            🟠 Media (0)
+          </label>
+        </div>
+        <div class="filter-section">
+          <label class="filter-label">
+            <input type="checkbox" id="filterHigh" checked class="filter-checkbox">
+            🔴 Alta (0)
+          </label>
+        </div>
+      </div>
+    </div>
   </aside>
 
   <div class="main-container">
@@ -77,6 +113,7 @@
               <textarea id="input" rows="1" placeholder="Escribe un mensaje…" maxlength="4000"></textarea>
               <div class="composer-buttons">
                 <button type="button" id="exportBtn" class="icon-btn" title="Exportar conversación">⬇️</button>
+                <button type="button" id="cancelBtn" class="icon-btn" title="Cancelar mensaje" style="display: none;">✕</button>
                 <button type="submit" id="sendBtn" aria-label="Enviar">➤</button>
               </div>
             </form>
@@ -90,16 +127,71 @@
         <div class="ticket-container">
           <div class="ticket-header">
             <h2>🎫 Gestión de Tickets</h2>
-            <button id="refreshTickets" class="icon-btn" title="Actualizar tickets">🔄</button>
+            <div class="ticket-header-buttons">
+              <button id="newTicketBtn" class="icon-btn" title="Crear nuevo ticket">➕</button>
+              <button id="refreshTickets" class="icon-btn" title="Actualizar tickets">🔄</button>
+            </div>
           </div>
           <div id="ticketList" class="ticket-list"></div>
           <div id="emptyTickets" class="empty-state">
             <p>No hay tickets creados aún</p>
-            <p class="hint">Crea tickets desde el chat o espera que el agente los genere</p>
+            <p class="hint">Crea tickets desde el chat o usando el botón ➕</p>
           </div>
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Modal para crear/editar tickets -->
+  <div id="ticketModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle">Crear Ticket</h2>
+        <button id="closeModal" class="modal-close">✕</button>
+      </div>
+      <form id="ticketForm">
+        <div class="form-group">
+          <label for="ticketTitle">Título *</label>
+          <input type="text" id="ticketTitle" placeholder="Ej: CPU al 95%" required />
+        </div>
+        <div class="form-group">
+          <label for="ticketDescription">Descripción *</label>
+          <textarea id="ticketDescription" placeholder="Describe el problema..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="ticketPriority">Prioridad</label>
+          <select id="ticketPriority">
+            <option value="low">Baja</option>
+            <option value="medium" selected>Media</option>
+            <option value="high">Alta</option>
+          </select>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="deleteTicketBtn" class="btn btn-danger" style="display: none;">🗑️ Eliminar</button>
+          <div>
+            <button type="button" id="cancelTicketBtn" class="btn btn-secondary">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="submitTicketBtn">Crear</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal para ver detalles del ticket -->
+  <div id="ticketDetailsModal" class="modal">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h2 id="detailsTitle">Ticket</h2>
+        <button id="closeDetailsModal" class="modal-close">✕</button>
+      </div>
+      <div id="ticketDetails" class="ticket-details">
+        <!-- Se llenará dinámicamente -->
+      </div>
+      <div class="modal-buttons">
+        <button type="button" id="editFromDetailsBtn" class="btn btn-primary">✏️ Editar</button>
+        <button type="button" id="closeDetailsBtn" class="btn btn-secondary">Cerrar</button>
+      </div>
+    </div>
   </div>
 
   <!-- Toast notification -->

@@ -72,6 +72,18 @@ class ChatResponse(BaseModel):
     session_id: str = ""
 
 
+class CreateTicketRequest(BaseModel):
+    title: str
+    description: str
+    priority: str = "medium"
+
+
+class UpdateTicketRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    priority: str | None = None
+
+
 def get_provider(name: str | None = None) -> LLMProvider:
     provider_name = name or settings.provider
     if provider_name == "openai":
@@ -235,3 +247,49 @@ async def get_ticket(ticket_id: int):
             content={"error": "Ticket not found", "ticket_id": ticket_id}
         )
     return {"ticket": ticket}
+
+
+@app.post("/tickets")
+async def create_ticket(request: CreateTicketRequest):
+    """Crea un nuevo ticket"""
+    import asyncio
+    result = await _ticket_manager.execute(
+        title=request.title,
+        description=request.description,
+        priority=request.priority
+    )
+    # Obtener el ticket recién creado
+    tickets = _ticket_manager.get_all_tickets()
+    if tickets:
+        return {"ticket": tickets[-1], "message": result}
+    return JSONResponse(status_code=500, content={"error": "Failed to create ticket"})
+
+
+@app.put("/tickets/{ticket_id}")
+async def update_ticket(ticket_id: int, request: UpdateTicketRequest):
+    """Actualiza un ticket existente"""
+    success = _ticket_manager.edit_ticket(
+        ticket_id=ticket_id,
+        title=request.title,
+        description=request.description,
+        priority=request.priority
+    )
+    if not success:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Ticket not found", "ticket_id": ticket_id}
+        )
+    ticket = _ticket_manager.get_ticket(ticket_id)
+    return {"ticket": ticket, "message": f"Ticket #{ticket_id} updated"}
+
+
+@app.delete("/tickets/{ticket_id}")
+async def delete_ticket(ticket_id: int):
+    """Elimina un ticket"""
+    success = _ticket_manager.delete_ticket(ticket_id)
+    if not success:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Ticket not found", "ticket_id": ticket_id}
+        )
+    return {"message": f"Ticket #{ticket_id} deleted", "ticket_id": ticket_id}
