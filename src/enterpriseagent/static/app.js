@@ -931,7 +931,7 @@
 
   // Click en brand para ir al inicio
   document.getElementById("brandHome").addEventListener("click", () => {
-    newChat();
+    switchView("chat");
   });
 
   // Cambiar entre vistas
