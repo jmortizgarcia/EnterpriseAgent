@@ -7,45 +7,81 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo">◆</span>
-      <div>
-        <h1>Enterprise Agent</h1>
-        <p>Nimbus Cloud Platform · Asistente con RAG, tools y memoria</p>
-      </div>
+  <!-- Sidebar con historial -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h3>Historial</h3>
+      <button id="newChatBtn" class="icon-btn" title="Nueva conversación">➕</button>
     </div>
-    <div class="controls">
-      <label for="provider">Proveedor</label>
-      <select id="provider">
-        <option value="ollama">Ollama (local)</option>
-        <option value="claude">Claude</option>
-        <option value="openai">OpenAI</option>
-      </select>
-      <label for="sessionId">Sesión</label>
-      <input id="sessionId" type="text" placeholder="auto" title="ID de sesión para memoria. Vacío = sin memoria." />
-    </div>
-  </header>
+    <div id="sessionList" class="session-list"></div>
+  </aside>
 
-  <main class="stage">
-    <div class="chat-card">
-      <section id="messages" class="messages">
-        <div class="welcome">
-          <h2>¿En qué puedo ayudarte?</h2>
-          <p>Pregúntame sobre Nimbus Cloud Platform o pídeme que realice una acción.</p>
-          <div class="suggestions" id="suggestions"></div>
+  <div class="main-container">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="toggleSidebar" class="icon-btn sidebar-toggle" title="Mostrar/ocultar historial">☰</button>
+        <div class="brand">
+          <span class="logo">◆</span>
+          <div>
+            <h1>Enterprise Agent</h1>
+            <p>Nimbus Cloud Platform · Asistente con RAG, tools y memoria</p>
+          </div>
         </div>
-      </section>
+      </div>
+      <div class="controls">
+        <label for="provider">Proveedor</label>
+        <select id="provider">
+          <option value="ollama">Ollama (local)</option>
+          <option value="claude">Claude</option>
+          <option value="openai">OpenAI</option>
+        </select>
+        <label for="sessionId">Sesión</label>
+        <input id="sessionId" type="text" placeholder="auto" title="ID de sesión para memoria. Vacío = sin memoria." />
+      </div>
+    </header>
 
-      <footer class="composer">
-        <form id="chatForm" autocomplete="off">
-          <textarea id="input" rows="1" placeholder="Escribe un mensaje…" maxlength="4000"></textarea>
-          <button type="submit" id="sendBtn" aria-label="Enviar">➤</button>
-        </form>
-        <p class="hint">El agente se basa en la documentación de Nimbus y puede crear tickets o consultar métricas.</p>
-      </footer>
-    </div>
-  </main>
+    <main class="stage">
+      <div class="chat-card">
+        <!-- Stats panel -->
+        <div class="stats-panel" id="statsPanel">
+          <div class="stat">
+            <span class="label">Tokens</span>
+            <span class="value" id="currentTokens">0</span>
+          </div>
+          <div class="stat">
+            <span class="label">Coste</span>
+            <span class="value" id="totalCost">$0.00</span>
+          </div>
+          <div class="stat">
+            <span class="label">Latencia</span>
+            <span class="value" id="latency">0ms</span>
+          </div>
+        </div>
+
+        <section id="messages" class="messages">
+          <div class="welcome">
+            <h2>¿En qué puedo ayudarte?</h2>
+            <p>Pregúntame sobre Nimbus Cloud Platform o pídeme que realice una acción.</p>
+            <div class="suggestions" id="suggestions"></div>
+          </div>
+        </section>
+
+        <footer class="composer">
+          <form id="chatForm" autocomplete="off">
+            <textarea id="input" rows="1" placeholder="Escribe un mensaje…" maxlength="4000"></textarea>
+            <div class="composer-buttons">
+              <button type="button" id="exportBtn" class="icon-btn" title="Exportar conversación">⬇️</button>
+              <button type="submit" id="sendBtn" aria-label="Enviar">➤</button>
+            </div>
+          </form>
+          <p class="hint">El agente se basa en la documentación de Nimbus y puede crear tickets o consultar métricas.</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast"></div>
 
   <script src="/static/app.js"></script>
 </body>
